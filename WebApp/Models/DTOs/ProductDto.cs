@@ -4,7 +4,7 @@ namespace WebApp.Models.DTOs
 {
     public class ProductDto
     {
-        public int Id { get; set; }
+        public string Id { get; set; }
         [Required(ErrorMessage = "Tên không được để trống!")]
         public string Name { get; set; } = default!;
         public string Description { get; set; } = default!;

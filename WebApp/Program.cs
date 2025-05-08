@@ -14,7 +14,7 @@ public class Program
         // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
-
+        AddServices(builder.Services);
         builder.Services.AddSwaggerGen(option =>
         {
             option.SwaggerDoc("v1", new OpenApiInfo { Title = "Demo API", Version = "v1" });
@@ -71,5 +71,9 @@ public class Program
             .AddInteractiveServerRenderMode();
 
         app.Run();
+    }
+    public static void AddServices(IServiceCollection services)
+    {
+        services.AddScoped<IProductService, ProductService>();
     }
 }
