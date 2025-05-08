@@ -74,6 +74,7 @@ public class Program
     }
     public static void AddServices(IServiceCollection services)
     {
+        services.AddAntDesign();
         services.AddScoped<IProductService, ProductService>();
     }
 }
