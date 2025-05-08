@@ -1,5 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using WebApp.Components;
+using WebApp.Data;
 
 namespace WebApp;
 
@@ -42,6 +44,11 @@ public class Program
         });
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
+
+        builder.Services.AddDbContext<ShoeStoreDbContext>(options =>
+        {
+            options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
+        });
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
