@@ -5,6 +5,7 @@
 @inject IProductService productService
 @inject ICategoryService categoryService
 @inject IBrandService brandService
+@inject IImgurService imgurService
 @inject MessageService MessageService
 
 
@@ -29,10 +30,10 @@
         </Button>
     </SpaceItem>
     <SpaceItem>
-        <Input @bind-Value="@_searchText" 
-        Placeholder="Tìm kiếm sản phẩm..." 
-        Style="width: 200px" 
-        OnChange="@(async (string value) => await OnSearch(value))" />
+        <Input @bind-Value="@_searchText"
+               Placeholder="Tìm kiếm sản phẩm..."
+               Style="width: 200px"
+               OnChange="@(async (string value) => await OnSearch(value))" />
     </SpaceItem>
     <SpaceItem>
         <Button Type="@ButtonType.Default" OnClick="ShowFilterModal">
@@ -50,11 +51,11 @@
         }
     </SpaceItem>
     <SpaceItem>
-        <Select TItem="int" 
-        TItemValue="int" 
-        Style="width: 120px" 
-        @bind-Value="@pageSize" 
-        OnChange="@(async (int value) => await OnPageSizeChange(value))">
+        <Select TItem="int"
+                TItemValue="int"
+                Style="width: 120px"
+                @bind-Value="@pageSize"
+                OnChange="@(async (int value) => await OnPageSizeChange(value))">
             <SelectOptions>
                 <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
                 <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
@@ -68,19 +69,24 @@
 <p />
 
 <Table @ref=_table
-TItem="ProductDto"
-DataSource="@_data"
-Total="@totalItems"
-PageSize="@pageSize"
-PageIndex="@pageIndex"
-OnChange="@OnTableChange"
-Loading="_loading">
+       TItem="ProductDto"
+       DataSource="@_data"
+       Total="@totalItems"
+       PageSize="@pageSize"
+       PageIndex="@pageIndex"
+       OnChange="@OnTableChange"
+       Loading="_loading">
+    <ActionColumn>
+        <Avatar Size="@("4rem")" Src="@context.MainImage" />
+    </ActionColumn>
     <PropertyColumn Property="c=>c.Name" Title="Tên sản phẩm" />
     <PropertyColumn Property="c=>c.Description" Title="Mô tả" />
-    <PropertyColumn Property="c=>c.Price" Title="Giá" Format="#,0 VNĐ" />
-    <PropertyColumn Property="c=>c.SalePrice" Title="Giá khuyến mãi" Format="#,0 VNĐ" />
+    <PropertyColumn Property="c=>c.Price" Title="Giá" Format="N0" />
+    <PropertyColumn Property="c=>c.SalePrice" Title="Giá khuyến mãi" Format="N0" />
     <PropertyColumn Property="c=>c.CategoryName" Title="Danh mục" />
     <PropertyColumn Property="c=>c.BrandName" Title="Thương hiệu" />
+    <PropertyColumn Property="c=>c.LikeCount" Title="Lượt thích" />
+    <PropertyColumn Property="c=>c.CreatedAt" Title="Ngày tạo" Format="dd/MM/yyyy" />
     <ActionColumn Title="Thao tác">
         <Space>
             <SpaceItem>
@@ -90,9 +96,9 @@ Loading="_loading">
             </SpaceItem>
             <SpaceItem>
                 <Popconfirm Title="Xác nhận xóa?"
-                OkText="Có"
-                CancelText="Không"
-                OnConfirm="() => OnDelete(context.Id)">
+                            OkText="Có"
+                            CancelText="Không"
+                            OnConfirm="() => OnDelete(context.Id)">
                     <Button Danger>
                         <Icon Type="delete" />
                     </Button>
@@ -103,125 +109,211 @@ Loading="_loading">
 </Table>
 
 <Modal Title="@("Tạo sản phẩm")"
-Visible="@_createModalVisible"
-OnOk="@OnCreateOk"
-OnCancel="@OnCreateCancel"
-Width="800">
+       Visible="@_createModalVisible"
+       OnOk="@OnCreateOk"
+       OnCancel="@OnCreateCancel"
+       Width="800">
     <Form Model="@_newProduct" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
-        <FormItem Label="Tên sản phẩm">
-            <Input @bind-Value="@_newProduct.Name" />
-        </FormItem>
-        <FormItem Label="Mô tả">
-            <TextArea @bind-Value="@_newProduct.Description" />
-        </FormItem>
-        <FormItem Label="Giá">
-            <AntDesign.InputNumber @bind-Value="@_newProduct.Price" Style="width: 100%" />
-        </FormItem>
-        <FormItem Label="Giá khuyến mãi">
-            <AntDesign.InputNumber @bind-Value="@_newProduct.SalePrice" Style="width: 100%" />
-        </FormItem>
-        <FormItem Label="Danh mục">
-            <Select TItem="string"
-            TItemValue="string"
-            @bind-Value="@_newProduct.CategoryId"
-            Placeholder="Chọn danh mục">
-                <SelectOptions>
-                    @foreach (var category in _categories)
+        <Row>
+            <Col Span="12">
+                <FormItem Label="Tên sản phẩm">
+                    <Input @bind-Value="@_newProduct.Name" />
+                </FormItem>
+                <FormItem Label="Mô tả">
+                    <TextArea @bind-Value="@_newProduct.Description" />
+                </FormItem>
+                <FormItem Label="Danh mục">
+                    <Select TItem="string"
+                            TItemValue="string"
+                            @bind-Value="@_newProduct.CategoryId"
+                            Placeholder="Chọn danh mục">
+                        <SelectOptions>
+                            @foreach (var category in _categories)
+                            {
+                                <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
+                            }
+                        </SelectOptions>
+                    </Select>
+                </FormItem>
+                <FormItem Label="Thương hiệu">
+                    <Select TItem="string"
+                            TItemValue="string"
+                            @bind-Value="@_newProduct.BrandId"
+                            Placeholder="Chọn thương hiệu">
+                        <SelectOptions>
+                            @foreach (var brand in _brands)
+                            {
+                                <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
+                            }
+                        </SelectOptions>
+                    </Select>
+                </FormItem>
+                <FormItem Label="Giá">
+                    <AntDesign.InputNumber @bind-Value="@_newProduct.Price" Style="width: 100%" />
+                </FormItem>
+                <FormItem Label="Giá khuyến mãi">
+                    <AntDesign.InputNumber @bind-Value="@_newProduct.SalePrice" Style="width: 100%" />
+                </FormItem>
+            </Col>
+            <Col Span="12">
+                <FormItem Label="Ảnh chính">
+                    <InputFile id="createMainImageInput" OnChange="@OnCreateMainImageChange" hidden />
+                    <Upload FileList="@_createMainImageFileList">
+                        <label class="ant-btn" for="createMainImageInput">
+                            <Icon Type="@IconType.Outline.Upload" />
+                            Chọn ảnh chính
+                        </label>
+                    </Upload>
+                    @if (!string.IsNullOrEmpty(_newProduct.MainImage))
                     {
-                        <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
+                        <div style="margin-top: 10px;">
+                            <Image Src="@_newProduct.MainImage" Style="width: 200px; height: 200px; object-fit: cover;" />
+                        </div>
                     }
-                </SelectOptions>
-            </Select>
-        </FormItem>
-        <FormItem Label="Thương hiệu">
-            <Select TItem="string"
-            TItemValue="string"
-            @bind-Value="@_newProduct.BrandId"
-            Placeholder="Chọn thương hiệu">
-                <SelectOptions>
-                    @foreach (var brand in _brands)
+                </FormItem>
+                <FormItem Label="Ảnh phụ">
+                    <InputFile id="createImagesInput" OnChange="@OnCreateImagesChange" hidden multiple />
+                    <Upload FileList="@_createImageFileList" Multiple>
+                        <label class="ant-btn" for="createImagesInput">
+                            <Icon Type="@IconType.Outline.Upload" />
+                            Chọn ảnh phụ
+                        </label>
+                    </Upload>
+                    <Upload Drag>
+                        <InputFile OnChange="@OnCreateImagesChange" style="position: absolute; width: 100%; height: 100%; opacity: 0; top: 0; left: 0; z-index: 2;" multiple />
+                        <p class="ant-upload-drag-icon">
+                            <Icon Type="@IconType.Outline.Inbox" />
+                        </p>
+                        <p class="ant-upload-text">Kéo thả ảnh vào đây để tải lên</p>
+                        <p class="ant-upload-hint">
+                            Hỗ trợ tải lên một hoặc nhiều ảnh. Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png)
+                        </p>
+                    </Upload>
+                    @if (_newProduct.Images != null && _newProduct.Images.Any())
                     {
-                        <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
+                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            @foreach (var image in _newProduct.Images)
+                            {
+                                <Image Src="@image" Style="width: 100px; height: 100px; object-fit: cover;" />
+                            }
+                        </div>
                     }
-                </SelectOptions>
-            </Select>
-        </FormItem>
-        <FormItem Label="Hình ảnh chính">
-            <Input @bind-Value="@_newProduct.MainImage" />
-        </FormItem>
-        <FormItem Label="Hình ảnh phụ">
-            <Input @bind-Value="@_newProduct.Image" />
-        </FormItem>
+                </FormItem>
+            </Col>
+        </Row>
     </Form>
 </Modal>
 
-<Modal Title="@("Chỉnh sửa sản phẩm")"
-Visible="@_editModalVisible"
-OnOk="@OnEditOk"
-OnCancel="@OnEditCancel"
-Width="800">
+<Modal Title="@("Cập nhật sản phẩm")"
+       Visible="@_editModalVisible"
+       OnOk="@OnEditOk"
+       OnCancel="@OnEditCancel"
+       Width="800">
     <Form Model="@_editProduct" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
-        <FormItem Label="Tên sản phẩm">
-            <Input @bind-Value="@_editProduct.Name" />
-        </FormItem>
-        <FormItem Label="Mô tả">
-            <TextArea @bind-Value="@_editProduct.Description" />
-        </FormItem>
-        <FormItem Label="Giá">
-            <AntDesign.InputNumber @bind-Value="@_editProduct.Price" Style="width: 100%" />
-        </FormItem>
-        <FormItem Label="Giá khuyến mãi">
-            <AntDesign.InputNumber @bind-Value="@_editProduct.SalePrice" Style="width: 100%" />
-        </FormItem>
-        <FormItem Label="Danh mục">
-            <Select TItem="string"
-            TItemValue="string"
-            @bind-Value="@_editProduct.CategoryId"
-            Placeholder="Chọn danh mục">
-                <SelectOptions>
-                    @foreach (var category in _categories)
+        <Row>
+            <Col Span="12">
+                <FormItem Label="Tên sản phẩm">
+                    <Input @bind-Value="@_editProduct.Name" />
+                </FormItem>
+                <FormItem Label="Mô tả">
+                    <TextArea @bind-Value="@_editProduct.Description" />
+                </FormItem>
+                <FormItem Label="Danh mục">
+                    <Select TItem="string"
+                            TItemValue="string"
+                            @bind-Value="@_editProduct.CategoryId"
+                            Placeholder="Chọn danh mục">
+                        <SelectOptions>
+                            @foreach (var category in _categories)
+                            {
+                                <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
+                            }
+                        </SelectOptions>
+                    </Select>
+                </FormItem>
+                <FormItem Label="Thương hiệu">
+                    <Select TItem="string"
+                            TItemValue="string"
+                            @bind-Value="@_editProduct.BrandId"
+                            Placeholder="Chọn thương hiệu">
+                        <SelectOptions>
+                            @foreach (var brand in _brands)
+                            {
+                                <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
+                            }
+                        </SelectOptions>
+                    </Select>
+                </FormItem>
+                <FormItem Label="Giá">
+                    <AntDesign.InputNumber @bind-Value="@_editProduct.Price" Style="width: 100%" />
+                </FormItem>
+                <FormItem Label="Giá khuyến mãi">
+                    <AntDesign.InputNumber @bind-Value="@_editProduct.SalePrice" Style="width: 100%" />
+                </FormItem>
+            </Col>
+            <Col Span="12">
+                <FormItem Label="Ảnh chính">
+                    <InputFile id="editMainImageInput" OnChange="@OnEditMainImageChange" hidden />
+                    <Upload FileList="@_editMainImageFileList">
+                        <label class="ant-btn" for="editMainImageInput">
+                            <Icon Type="@IconType.Outline.Upload" />
+                            Chọn ảnh chính
+                        </label>
+                    </Upload>
+                    @if (!string.IsNullOrEmpty(_editProduct.MainImage))
                     {
-                        <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
+                        <div style="margin-top: 10px;">
+                            <Image Src="@_editProduct.MainImage" Style="width: 200px; height: 200px; object-fit: cover;" />
+                        </div>
                     }
-                </SelectOptions>
-            </Select>
-        </FormItem>
-        <FormItem Label="Thương hiệu">
-            <Select TItem="string"
-            TItemValue="string"
-            @bind-Value="@_editProduct.BrandId"
-            Placeholder="Chọn thương hiệu">
-                <SelectOptions>
-                    @foreach (var brand in _brands)
+                </FormItem>
+                <FormItem Label="Ảnh phụ">
+                    <InputFile id="editImagesInput" OnChange="@OnEditImagesChange" hidden multiple />
+                    <Upload FileList="@_editImageFileList" Multiple>
+                        <label class="ant-btn" for="editImagesInput">
+                            <Icon Type="@IconType.Outline.Upload" />
+                            Chọn ảnh phụ
+                        </label>
+                    </Upload>
+                    <Upload Drag>
+                        <InputFile OnChange="@OnEditImagesChange" style="position: absolute; width: 100%; height: 100%; opacity: 0; top: 0; left: 0; z-index: 2;" multiple />
+                        <p class="ant-upload-drag-icon">
+                            <Icon Type="@IconType.Outline.Inbox" />
+                        </p>
+                        <p class="ant-upload-text">Kéo thả ảnh vào đây để tải lên</p>
+                        <p class="ant-upload-hint">
+                            Hỗ trợ tải lên một hoặc nhiều ảnh. Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png)
+                        </p>
+                    </Upload>
+                    @if (_editProduct.Images != null && _editProduct.Images.Any())
                     {
-                        <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
+                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            @foreach (var image in _editProduct.Images)
+                            {
+                                <Image Src="@image" Style="width: 100px; height: 100px; object-fit: cover;" />
+                            }
+                        </div>
                     }
-                </SelectOptions>
-            </Select>
-        </FormItem>
-        <FormItem Label="Hình ảnh chính">
-            <Input @bind-Value="@_editProduct.MainImage" />
-        </FormItem>
-        <FormItem Label="Hình ảnh phụ">
-            <Input @bind-Value="@_editProduct.Image" />
-        </FormItem>
+                </FormItem>
+            </Col>
+        </Row>
     </Form>
 </Modal>
 
 <Modal Title="@("Lọc sản phẩm")"
-Visible="@_filterModalVisible"
-OnOk="@OnFilterOk"
-OnCancel="@OnFilterCancel"
-Width="600">
+       Visible="@_filterModalVisible"
+       OnOk="@OnFilterOk"
+       OnCancel="@OnFilterCancel"
+       Width="600">
     <Form Model="@_filterModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <FormItem Label="Tên sản phẩm">
             <Input @bind-Value="@_filterModel.Name" />
         </FormItem>
         <FormItem Label="Danh mục">
             <Select TItem="string"
-            TItemValue="string"
-            @bind-Value="@_filterModel.CategoryId"
-            Placeholder="Chọn danh mục">
+                    TItemValue="string"
+                    @bind-Value="@_filterModel.CategoryId"
+                    Placeholder="Chọn danh mục">
                 <SelectOptions>
                     @foreach (var category in _categories)
                     {
@@ -232,9 +324,9 @@ Width="600">
         </FormItem>
         <FormItem Label="Thương hiệu">
             <Select TItem="string"
-            TItemValue="string"
-            @bind-Value="@_filterModel.BrandId"
-            Placeholder="Chọn thương hiệu">
+                    TItemValue="string"
+                    @bind-Value="@_filterModel.BrandId"
+                    Placeholder="Chọn thương hiệu">
                 <SelectOptions>
                     @foreach (var brand in _brands)
                     {
@@ -253,9 +345,6 @@ Width="600">
 </Modal>
 
 @code {
-
-
-
     private IEnumerable<ProductDto> _data = [];
     private ITable _table;
     private ProductDto _newProduct = new();
@@ -274,6 +363,16 @@ Width="600">
     private int pageSize = 5;
     private int pageIndex = 1;
     private int totalItems = 0;
+
+    private IBrowserFile _createMainImageFile;
+    private List<IBrowserFile> _createImageFiles = new();
+    private IBrowserFile _editMainImageFile;
+    private List<IBrowserFile> _editImageFiles = new();
+
+    private List<UploadFileItem> _createMainImageFileList = new();
+    private List<UploadFileItem> _createImageFileList = new();
+    private List<UploadFileItem> _editMainImageFileList = new();
+    private List<UploadFileItem> _editImageFileList = new();
 
     private class FilterModel
     {
@@ -329,7 +428,7 @@ Width="600">
         _loading = true;
 
         await Task.Delay(100);
-        try 
+        try
         {
             if (_currentFilter.Any())
             {
@@ -377,13 +476,13 @@ Width="600">
     private void ShowFilterModal()
     {
         _filterModel = new FilterModel
-        {
-            Name = _currentFilter.GetValueOrDefault("name", ""),
-            CategoryId = _currentFilter.GetValueOrDefault("categoryId"),
-            BrandId = _currentFilter.GetValueOrDefault("brandId"),
-            MinPrice = _currentFilter.ContainsKey("minPrice") ? double.Parse(_currentFilter["minPrice"]) : null,
-            MaxPrice = _currentFilter.ContainsKey("maxPrice") ? double.Parse(_currentFilter["maxPrice"]) : null
-        };
+            {
+                Name = _currentFilter.GetValueOrDefault("name", ""),
+                CategoryId = _currentFilter.GetValueOrDefault("categoryId"),
+                BrandId = _currentFilter.GetValueOrDefault("brandId"),
+                MinPrice = _currentFilter.ContainsKey("minPrice") ? double.Parse(_currentFilter["minPrice"]) : null,
+                MaxPrice = _currentFilter.ContainsKey("maxPrice") ? double.Parse(_currentFilter["maxPrice"]) : null
+            };
         _filterModalVisible = true;
     }
 
@@ -414,6 +513,10 @@ Width="600">
     private void ShowCreateModal()
     {
         _newProduct = new ProductDto();
+        _createMainImageFile = null;
+        _createImageFiles = new();
+        _createMainImageFileList = new();
+        _createImageFileList = new();
         _createModalVisible = true;
     }
 
@@ -429,8 +532,12 @@ Width="600">
             CategoryId = product.CategoryId,
             BrandId = product.BrandId,
             MainImage = product.MainImage,
-            Image = product.Image
+            Images = product.Images?.ToList() ?? new List<string>()
         };
+        _editMainImageFile = null;
+        _editImageFiles = new();
+        _editMainImageFileList = new();
+        _editImageFileList = new();
         _editModalVisible = true;
     }
 
@@ -503,5 +610,81 @@ Width="600">
         pageIndex = 1;
         await LoadData();
         MessageService.Success("Đã xóa bộ lọc!");
+    }
+
+    private async Task OnCreateMainImageChange(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            _createMainImageFile = e.File;
+            if (_createMainImageFile != null)
+            {
+                _newProduct.MainImage = await imgurService.UploadImageAsync(_createMainImageFile);
+                _createMainImageFileList = new List<UploadFileItem> { new UploadFileItem { FileName = _createMainImageFile.Name, Size = _createMainImageFile.Size } };
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
+        }
+    }
+
+    private async Task OnCreateImagesChange(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var newFiles = e.GetMultipleFiles().ToList();
+            if (newFiles.Any())
+            {
+                var newImageUrls = await imgurService.UploadImagesAsync(newFiles);
+                _newProduct.Images ??= new List<string>();
+                _newProduct.Images.AddRange(newImageUrls);
+                
+                _createImageFiles.AddRange(newFiles);
+                _createImageFileList.AddRange(newFiles.Select(file => new UploadFileItem { FileName = file.Name, Size = file.Size }));
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
+        }
+    }
+
+    private async Task OnEditMainImageChange(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            _editMainImageFile = e.File;
+            if (_editMainImageFile != null)
+            {
+                _editProduct.MainImage = await imgurService.UploadImageAsync(_editMainImageFile);
+                _editMainImageFileList = new List<UploadFileItem> { new UploadFileItem { FileName = _editMainImageFile.Name, Size = _editMainImageFile.Size } };
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
+        }
+    }
+
+    private async Task OnEditImagesChange(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var newFiles = e.GetMultipleFiles().ToList();
+            if (newFiles.Any())
+            {
+                var newImageUrls = await imgurService.UploadImagesAsync(newFiles);
+                _editProduct.Images ??= new List<string>();
+                _editProduct.Images.AddRange(newImageUrls);
+                
+                _editImageFiles.AddRange(newFiles);
+                _editImageFileList.AddRange(newFiles.Select(file => new UploadFileItem { FileName = file.Name, Size = file.Size }));
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
+        }
     }
 }

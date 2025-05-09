@@ -13,7 +13,7 @@ namespace WebApp.Models.DTOs
         [Range(0, 100000000)]
         public double? SalePrice { get; set; }
         public string? MainImage { get; set; }
-        public string? Image { get; set; }
+        public List<string>? Images { get; set; }
         public int LikeCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

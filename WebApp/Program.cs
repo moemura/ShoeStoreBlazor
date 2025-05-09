@@ -100,6 +100,9 @@ public class Program
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IBrandService, BrandService>();
+        services.AddScoped<IFileService, FileService>();
+        services.AddScoped<IImgurService, ImgurService>();
+        services.AddHttpClient();
 
         // Add other services as needed
     }

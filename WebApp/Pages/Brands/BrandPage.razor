@@ -2,7 +2,8 @@
 @using AntDesign.TableModels
 @using WebApp.Models
 @using WebApp.Models.DTOs
-@inject IBrandService service
+@inject IBrandService brandService
+@inject IFileService fileService
 @inject MessageService MessageService
 
 <PageTitle>Quản lý thương hiệu</PageTitle>
@@ -26,17 +27,17 @@
         </Button>
     </SpaceItem>
     <SpaceItem>
-        <Input @bind-Value="@_searchText" 
-        Placeholder="Tìm kiếm thương hiệu..." 
-        Style="width: 200px" 
-        OnChange="@(async (string value) => await OnSearch(value))" />
+        <Input @bind-Value="@_searchText"
+               Placeholder="Tìm kiếm thương hiệu..."
+               Style="width: 200px"
+               OnChange="@(async (string value) => await OnSearch(value))" />
     </SpaceItem>
     <SpaceItem>
-        <Select TItem="int" 
-        TItemValue="int" 
-        Style="width: 120px" 
-        @bind-Value="@pageSize" 
-        OnChange="@(async (int value) => await OnPageSizeChange(value))">
+        <Select TItem="int"
+                TItemValue="int"
+                Style="width: 120px"
+                @bind-Value="@pageSize"
+                OnChange="@(async (int value) => await OnPageSizeChange(value))">
             <SelectOptions>
                 <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
                 <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
@@ -50,16 +51,18 @@
 <p />
 
 <Table @ref=_table
-TItem="BrandDto"
-DataSource="@_data"
-Total="@totalItems"
-PageSize="@pageSize"
-PageIndex="@pageIndex"
-OnChange="@OnTableChange"
-Loading="_loading">
+       TItem="BrandDto"
+       DataSource="@_data"
+       Total="@totalItems"
+       PageSize="@pageSize"
+       PageIndex="@pageIndex"
+       OnChange="@OnTableChange"
+       Loading="_loading">
+    <PropertyColumn TItem="BrandDto" TProp="string" Width="80px">
+        <Avatar Src="@(fileService.GetFileUrl(context.Logo, "brands"))" />
+    </PropertyColumn>
     <PropertyColumn Property="c=>c.Name" Title="Tên thương hiệu" />
     <PropertyColumn Property="c=>c.Description" Title="Mô tả" />
-    <PropertyColumn Property="c=>c.CreatedAt" Title="Ngày tạo" Format="dd/MM/yyyy" />
     <ActionColumn Title="Thao tác">
         <Space>
             <SpaceItem>
@@ -69,9 +72,9 @@ Loading="_loading">
             </SpaceItem>
             <SpaceItem>
                 <Popconfirm Title="Xác nhận xóa?"
-                OkText="Có"
-                CancelText="Không"
-                OnConfirm="() => OnDelete(context.Id)">
+                            OkText="Có"
+                            CancelText="Không"
+                            OnConfirm="() => OnDelete(context.Id)">
                     <Button Danger>
                         <Icon Type="delete" />
                     </Button>
@@ -82,10 +85,10 @@ Loading="_loading">
 </Table>
 
 <Modal Title="@("Tạo thương hiệu")"
-Visible="@_createModalVisible"
-OnOk="@OnCreateOk"
-OnCancel="@OnCreateCancel"
-Width="600">
+       Visible="@_createModalVisible"
+       OnOk="@OnCreateOk"
+       OnCancel="@OnCreateCancel"
+       Width="600">
     <Form Model="@_newBrand" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <FormItem Label="Tên thương hiệu">
             <Input @bind-Value="@_newBrand.Name" />
@@ -94,16 +97,22 @@ Width="600">
             <TextArea @bind-Value="@_newBrand.Description" />
         </FormItem>
         <FormItem Label="Logo">
-            <Input @bind-Value="@_newBrand.Logo" />
+            <InputFile OnChange="@OnCreateLogoChange" Accept=".jpg,.jpeg,.png" />
+            @if (!string.IsNullOrEmpty(_newBrand.Logo))
+            {
+                <div style="margin-top: 10px;">
+                    <Image Src="@fileService.GetFileUrl(_newBrand.Logo, "brands")" Style="width: 200px; height: 200px; object-fit: cover;" />
+                </div>
+            }
         </FormItem>
     </Form>
 </Modal>
 
 <Modal Title="@("Chỉnh sửa thương hiệu")"
-Visible="@_editModalVisible"
-OnOk="@OnEditOk"
-OnCancel="@OnEditCancel"
-Width="600">
+       Visible="@_editModalVisible"
+       OnOk="@OnEditOk"
+       OnCancel="@OnEditCancel"
+       Width="600">
     <Form Model="@_editBrand" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <FormItem Label="Tên thương hiệu">
             <Input @bind-Value="@_editBrand.Name" />
@@ -112,7 +121,13 @@ Width="600">
             <TextArea @bind-Value="@_editBrand.Description" />
         </FormItem>
         <FormItem Label="Logo">
-            <Input @bind-Value="@_editBrand.Logo" />
+            <InputFile OnChange="@OnEditLogoChange" Accept=".jpg,.jpeg,.png" />
+            @if (!string.IsNullOrEmpty(_editBrand.Logo))
+            {
+                <div style="margin-top: 10px;">
+                    <Image Src="@fileService.GetFileUrl(_editBrand.Logo, "brands")" Style="width: 200px; height: 200px; object-fit: cover;" />
+                </div>
+            }
         </FormItem>
     </Form>
 </Modal>
@@ -127,7 +142,8 @@ Width="600">
     private bool _createModalVisible = false;
     private bool _editModalVisible = false;
     private PaginationData<BrandDto> _paginationData = new();
-    private Dictionary<string, string> _currentFilter = new();
+    private IBrowserFile _createLogoFile;
+    private IBrowserFile _editLogoFile;
 
     private int pageSize = 5;
     private int pageIndex = 1;
@@ -143,16 +159,9 @@ Width="600">
         _loading = true;
 
         await Task.Delay(100);
-        try 
+        try
         {
-            if (_currentFilter.Any())
-            {
-                _paginationData = await service.FilterAndPagin(pageIndex, pageSize, _currentFilter);
-            }
-            else
-            {
-                _paginationData = await service.GetPagination(pageIndex, pageSize);
-            }
+            _paginationData = await brandService.GetPagination(pageIndex, pageSize);
             _data = _paginationData.Data;
             totalItems = _paginationData.ItemCount;
         }
@@ -169,14 +178,6 @@ Width="600">
     private async Task OnSearch(string value)
     {
         _searchText = value;
-        if (!string.IsNullOrEmpty(value))
-        {
-            _currentFilter["name"] = value;
-        }
-        else
-        {
-            _currentFilter.Remove("name");
-        }
         pageIndex = 1;
         await LoadData();
     }
@@ -201,11 +202,41 @@ Width="600">
         _createModalVisible = true;
     }
 
+    private void ShowEditModal(BrandDto brand)
+    {
+        _editBrand = new BrandDto
+            {
+                Id = brand.Id,
+                Name = brand.Name,
+                Description = brand.Description,
+                Logo = brand.Logo
+            };
+        _editModalVisible = true;
+    }
+
+    private async Task OnCreateLogoChange(InputFileChangeEventArgs e)
+    {
+        _createLogoFile = e.File;
+        if (_createLogoFile != null)
+        {
+            _newBrand.Logo = await fileService.SaveFileAsync(_createLogoFile, "brands");
+        }
+    }
+
+    private async Task OnEditLogoChange(InputFileChangeEventArgs e)
+    {
+        _editLogoFile = e.File;
+        if (_editLogoFile != null)
+        {
+            _editBrand.Logo = await fileService.SaveFileAsync(_editLogoFile, "brands");
+        }
+    }
+
     private async Task OnCreateOk()
     {
         try
         {
-            await service.Create(_newBrand);
+            await brandService.Create(_newBrand);
             MessageService.Success("Thêm thương hiệu thành công!");
             _createModalVisible = false;
             await LoadData();
@@ -221,23 +252,11 @@ Width="600">
         _createModalVisible = false;
     }
 
-    private void ShowEditModal(BrandDto brand)
-    {
-        _editBrand = new BrandDto
-        {
-            Id = brand.Id,
-            Name = brand.Name,
-            Description = brand.Description,
-            Logo = brand.Logo
-        };
-        _editModalVisible = true;
-    }
-
     private async Task OnEditOk()
     {
         try
         {
-            await service.Update(_editBrand);
+            await brandService.Update(_editBrand);
             MessageService.Success("Cập nhật thương hiệu thành công!");
             _editModalVisible = false;
             await LoadData();
@@ -257,7 +276,7 @@ Width="600">
     {
         try
         {
-            await service.Delete(id);
+            await brandService.Delete(id);
             MessageService.Success("Xóa thương hiệu thành công!");
             await LoadData();
         }

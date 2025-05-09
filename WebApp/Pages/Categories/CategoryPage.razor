@@ -2,7 +2,8 @@
 @using AntDesign.TableModels
 @using WebApp.Models
 @using WebApp.Models.DTOs
-@inject ICategoryService service
+@inject ICategoryService categoryService
+@inject IFileService fileService
 @inject MessageService MessageService
 
 <PageTitle>Quản lý danh mục</PageTitle>
@@ -26,17 +27,17 @@
         </Button>
     </SpaceItem>
     <SpaceItem>
-        <Input @bind-Value="@_searchText" 
-        Placeholder="Tìm kiếm danh mục..." 
-        Style="width: 200px" 
-        OnChange="@(async (string value) => await OnSearch(value))" />
+        <Input @bind-Value="@_searchText"
+               Placeholder="Tìm kiếm danh mục..."
+               Style="width: 200px"
+               OnChange="@(async (string value) => await OnSearch(value))" />
     </SpaceItem>
     <SpaceItem>
-        <Select TItem="int" 
-        TItemValue="int" 
-        Style="width: 120px" 
-        @bind-Value="@pageSize" 
-        OnChange="@(async (int value) => await OnPageSizeChange(value))">
+        <Select TItem="int"
+                TItemValue="int"
+                Style="width: 120px"
+                @bind-Value="@pageSize"
+                OnChange="@(async (int value) => await OnPageSizeChange(value))">
             <SelectOptions>
                 <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
                 <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
@@ -50,16 +51,18 @@
 <p />
 
 <Table @ref=_table
-TItem="CategoryDto"
-DataSource="@_data"
-Total="@totalItems"
-PageSize="@pageSize"
-PageIndex="@pageIndex"
-OnChange="@OnTableChange"
-Loading="_loading">
+       TItem="CategoryDto"
+       DataSource="@_data"
+       Total="@totalItems"
+       PageSize="@pageSize"
+       PageIndex="@pageIndex"
+       OnChange="@OnTableChange"
+       Loading="_loading">
+    <PropertyColumn TItem="CategoryDto" TProp="string" Width="80px" >
+        <Avatar Src="@(fileService.GetFileUrl(context.Image, "brands"))" />
+    </PropertyColumn>
     <PropertyColumn Property="c=>c.Name" Title="Tên danh mục" />
     <PropertyColumn Property="c=>c.Description" Title="Mô tả" />
-    <PropertyColumn Property="c=>c.CreatedAt" Title="Ngày tạo" Format="dd/MM/yyyy" />
     <ActionColumn Title="Thao tác">
         <Space>
             <SpaceItem>
@@ -69,9 +72,9 @@ Loading="_loading">
             </SpaceItem>
             <SpaceItem>
                 <Popconfirm Title="Xác nhận xóa?"
-                OkText="Có"
-                CancelText="Không"
-                OnConfirm="() => OnDelete(context.Id)">
+                            OkText="Có"
+                            CancelText="Không"
+                            OnConfirm="() => OnDelete(context.Id)">
                     <Button Danger>
                         <Icon Type="delete" />
                     </Button>
@@ -82,10 +85,10 @@ Loading="_loading">
 </Table>
 
 <Modal Title="@("Tạo danh mục")"
-Visible="@_createModalVisible"
-OnOk="@OnCreateOk"
-OnCancel="@OnCreateCancel"
-Width="600">
+       Visible="@_createModalVisible"
+       OnOk="@OnCreateOk"
+       OnCancel="@OnCreateCancel"
+       Width="600">
     <Form Model="@_newCategory" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <FormItem Label="Tên danh mục">
             <Input @bind-Value="@_newCategory.Name" />
@@ -94,16 +97,22 @@ Width="600">
             <TextArea @bind-Value="@_newCategory.Description" />
         </FormItem>
         <FormItem Label="Hình ảnh">
-            <Input @bind-Value="@_newCategory.Image" />
+            <InputFile OnChange="@OnCreateImageChange" Accept=".jpg,.jpeg,.png" />
+            @if (!string.IsNullOrEmpty(_newCategory.Image))
+            {
+                <div style="margin-top: 10px;">
+                    <Image Src="@fileService.GetFileUrl(_newCategory.Image, "categories")" Style="width: 200px; height: 200px; object-fit: cover;" />
+                </div>
+            }
         </FormItem>
     </Form>
 </Modal>
 
 <Modal Title="@("Chỉnh sửa danh mục")"
-Visible="@_editModalVisible"
-OnOk="@OnEditOk"
-OnCancel="@OnEditCancel"
-Width="600">
+       Visible="@_editModalVisible"
+       OnOk="@OnEditOk"
+       OnCancel="@OnEditCancel"
+       Width="600">
     <Form Model="@_editCategory" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <FormItem Label="Tên danh mục">
             <Input @bind-Value="@_editCategory.Name" />
@@ -112,7 +121,13 @@ Width="600">
             <TextArea @bind-Value="@_editCategory.Description" />
         </FormItem>
         <FormItem Label="Hình ảnh">
-            <Input @bind-Value="@_editCategory.Image" />
+            <InputFile OnChange="@OnEditImageChange" Accept=".jpg,.jpeg,.png" />
+            @if (!string.IsNullOrEmpty(_editCategory.Image))
+            {
+                <div style="margin-top: 10px;">
+                    <Image Src="@fileService.GetFileUrl(_editCategory.Image, "categories")" Style="width: 200px; height: 200px; object-fit: cover;" />
+                </div>
+            }
         </FormItem>
     </Form>
 </Modal>
@@ -127,7 +142,8 @@ Width="600">
     private bool _createModalVisible = false;
     private bool _editModalVisible = false;
     private PaginationData<CategoryDto> _paginationData = new();
-    private Dictionary<string, string> _currentFilter = new();
+    private IBrowserFile _createImageFile;
+    private IBrowserFile _editImageFile;
 
     private int pageSize = 5;
     private int pageIndex = 1;
@@ -143,16 +159,9 @@ Width="600">
         _loading = true;
 
         await Task.Delay(100);
-        try 
+        try
         {
-            if (_currentFilter.Any())
-            {
-                _paginationData = await service.FilterAndPagin(pageIndex, pageSize, _currentFilter);
-            }
-            else
-            {
-                _paginationData = await service.GetPagination(pageIndex, pageSize);
-            }
+            _paginationData = await categoryService.GetPagination(pageIndex, pageSize);
             _data = _paginationData.Data;
             totalItems = _paginationData.ItemCount;
         }
@@ -169,14 +178,6 @@ Width="600">
     private async Task OnSearch(string value)
     {
         _searchText = value;
-        if (!string.IsNullOrEmpty(value))
-        {
-            _currentFilter["name"] = value;
-        }
-        else
-        {
-            _currentFilter.Remove("name");
-        }
         pageIndex = 1;
         await LoadData();
     }
@@ -201,11 +202,41 @@ Width="600">
         _createModalVisible = true;
     }
 
+    private void ShowEditModal(CategoryDto category)
+    {
+        _editCategory = new CategoryDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                Image = category.Image
+            };
+        _editModalVisible = true;
+    }
+
+    private async Task OnCreateImageChange(InputFileChangeEventArgs e)
+    {
+        _createImageFile = e.File;
+        if (_createImageFile != null)
+        {
+            _newCategory.Image = await fileService.SaveFileAsync(_createImageFile, "categories");
+        }
+    }
+
+    private async Task OnEditImageChange(InputFileChangeEventArgs e)
+    {
+        _editImageFile = e.File;
+        if (_editImageFile != null)
+        {
+            _editCategory.Image = await fileService.SaveFileAsync(_editImageFile, "categories");
+        }
+    }
+
     private async Task OnCreateOk()
     {
         try
         {
-            await service.Create(_newCategory);
+            await categoryService.Create(_newCategory);
             MessageService.Success("Thêm danh mục thành công!");
             _createModalVisible = false;
             await LoadData();
@@ -221,23 +252,11 @@ Width="600">
         _createModalVisible = false;
     }
 
-    private void ShowEditModal(CategoryDto category)
-    {
-        _editCategory = new CategoryDto
-        {
-            Id = category.Id,
-            Name = category.Name,
-            Description = category.Description,
-            Image = category.Image
-        };
-        _editModalVisible = true;
-    }
-
     private async Task OnEditOk()
     {
         try
         {
-            await service.Update(_editCategory);
+            await categoryService.Update(_editCategory);
             MessageService.Success("Cập nhật danh mục thành công!");
             _editModalVisible = false;
             await LoadData();
@@ -257,7 +276,7 @@ Width="600">
     {
         try
         {
-            await service.Delete(id);
+            await categoryService.Delete(id);
             MessageService.Success("Xóa danh mục thành công!");
             await LoadData();
         }

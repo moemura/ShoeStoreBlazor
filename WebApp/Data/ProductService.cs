@@ -106,7 +106,7 @@ namespace WebApp.Data
             product.Price = dto.Price;
             product.SalePrice = dto.SalePrice;
             product.MainImage = dto.MainImage;
-            product.Image = dto.Image;
+            product.Image = dto.Images != null ? string.Join(",", dto.Images) : null;
             product.LikeCount = dto.LikeCount;
             product.CategoryId = dto.CategoryId;
             product.BrandId = dto.BrandId;

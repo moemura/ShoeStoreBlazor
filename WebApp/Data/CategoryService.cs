@@ -8,7 +8,6 @@ namespace WebApp.Data
     public class CategoryService : ICategoryService
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _dbContextFactory;
-        private readonly ShoeStoreDbContext _context;
         private readonly ICacheService _cacheService;
         private const string CACHE_PREFIX = "Category_";
 
