@@ -1,0 +1,346 @@
+﻿@page "/management/product"
+@using AntDesign.TableModels
+@using WebApp.Models
+@inject IProductService service
+@inject MessageService MessageService
+
+
+<PageTitle>Quản lý sản phẩm</PageTitle>
+<Breadcrumb>
+    <BreadcrumbItem Href="">
+        <Icon Type="@IconType.Outline.Home" />
+    </BreadcrumbItem>
+    <BreadcrumbItem Href="">
+        <Icon Type="@IconType.Outline.Appstore" />
+        <span>Quản lý sản phẩm</span>
+    </BreadcrumbItem>
+</Breadcrumb>
+
+<br />
+
+<Space>
+    <SpaceItem>
+        <Button Type="@ButtonType.Primary" OnClick="() => ShowCreateModal()">
+            <Icon Type="plus" Theme="IconThemeType.Outline" />
+            Thêm mới
+        </Button>
+    </SpaceItem>
+    <SpaceItem>
+        <Input @bind-Value="@_searchText" 
+        Placeholder="Tìm kiếm sản phẩm..." 
+        Style="width: 200px" 
+        OnChange="@(async (string value) => await OnSearch(value))" />
+    </SpaceItem>
+    <SpaceItem>
+        <Button Type="@ButtonType.Default" OnClick="ShowFilterModal">
+            <Icon Type="filter" Theme="IconThemeType.Outline" />
+            Lọc
+        </Button>
+    </SpaceItem>
+    <SpaceItem>
+        <Select TItem="int" 
+        TItemValue="int" 
+        Style="width: 120px" 
+        @bind-Value="@pageSize" 
+        OnChange="@(async (int value) => await OnPageSizeChange(value))">
+            <SelectOptions>
+                <SelectOption TItem="int" TItemValue="int" Value="4" Label="4 / trang" />
+                <SelectOption TItem="int" TItemValue="int" Value="8" Label="8 / trang" />
+                <SelectOption TItem="int" TItemValue="int" Value="12" Label="12 / trang" />
+                <SelectOption TItem="int" TItemValue="int" Value="20" Label="20 / trang" />
+            </SelectOptions>
+        </Select>
+    </SpaceItem>
+</Space>
+
+<p />
+
+<Table @ref=_table
+TItem="ProductDto"
+DataSource="@_data"
+Total="@totalItems"
+PageSize="@pageSize"
+PageIndex="@pageIndex"
+OnChange="@OnTableChange"
+Loading="_loading">
+    <PropertyColumn Property="c=>c.Name" Title="Tên sản phẩm" />
+    <PropertyColumn Property="c=>c.Description" Title="Mô tả" />
+    <PropertyColumn Property="c=>c.Price" Title="Giá" Format="#,0 VNĐ" />
+    <PropertyColumn Property="c=>c.SalePrice" Title="Giá khuyến mãi" Format="#,0 VNĐ" />
+    <ActionColumn Title="Thao tác">
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" OnClick="() => ShowEditModal(context)">
+                    <Icon Type="edit" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Popconfirm Title="Xác nhận xóa?"
+                OkText="Có"
+                CancelText="Không"
+                OnConfirm="() => OnDelete(context.Id)">
+                    <Button Danger>
+                        <Icon Type="delete" />
+                    </Button>
+                </Popconfirm>
+            </SpaceItem>
+        </Space>
+    </ActionColumn>
+</Table>
+
+<Modal Title="@("Tạo sản phẩm")"
+Visible="@_createModalVisible"
+OnOk="@OnCreateOk"
+OnCancel="@OnCreateCancel"
+Width="800">
+    <Form Model="@_newProduct" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <FormItem Label="Name">
+            <Input @bind-Value="@_newProduct.Name" />
+        </FormItem>
+        <FormItem Label="Description">
+            <TextArea @bind-Value="@_newProduct.Description" />
+        </FormItem>
+        <FormItem Label="Price">
+            <AntDesign.InputNumber @bind-Value="@_newProduct.Price" Style="width: 100%" />
+        </FormItem>
+        <FormItem Label="Sale Price">
+            <AntDesign.InputNumber @bind-Value="@_newProduct.SalePrice" Style="width: 100%" />
+        </FormItem>
+    </Form>
+</Modal>
+
+<Modal Title="@("Chỉnh sửa sản phẩm")"
+Visible="@_editModalVisible"
+OnOk="@OnEditOk"
+OnCancel="@OnEditCancel"
+Width="800">
+    <Form Model="@_editProduct" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <FormItem Label="Name">
+            <Input @bind-Value="@_editProduct.Name" />
+        </FormItem>
+        <FormItem Label="Description">
+            <TextArea @bind-Value="@_editProduct.Description" />
+        </FormItem>
+        <FormItem Label="Price">
+            <AntDesign.InputNumber @bind-Value="@_editProduct.Price" Style="width: 100%" />
+        </FormItem>
+        <FormItem Label="Sale Price">
+            <AntDesign.InputNumber @bind-Value="@_editProduct.SalePrice" Style="width: 100%" />
+        </FormItem>
+    </Form>
+</Modal>
+
+<Modal Title="@("Lọc sản phẩm")"
+Visible="@_filterModalVisible"
+OnOk="@OnFilterOk"
+OnCancel="@OnFilterCancel"
+Width="600">
+    <Form Model="@_filterModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <FormItem Label="Tên sản phẩm">
+            <Input @bind-Value="@_filterModel.Name" />
+        </FormItem>
+        <FormItem Label="Giá từ">
+            <AntDesign.InputNumber @bind-Value="@_filterModel.MinPrice" Style="width: 100%" />
+        </FormItem>
+        <FormItem Label="Giá đến">
+            <AntDesign.InputNumber @bind-Value="@_filterModel.MaxPrice" Style="width: 100%" />
+        </FormItem>
+    </Form>
+</Modal>
+
+@code {
+
+    private IEnumerable<ProductDto> _data = [];
+    private ITable _table;
+    private ProductDto _newProduct = new();
+    private ProductDto _editProduct = new();
+    private bool _loading = true;
+    private string _searchText = "";
+    private bool _createModalVisible = false;
+    private bool _editModalVisible = false;
+    private bool _filterModalVisible = false;
+    private PaginationData<ProductDto> _paginationData = new();
+    private FilterModel _filterModel = new();
+    private Dictionary<string, string> _currentFilter = new();
+
+    private int pageSize = 4;
+    private int pageIndex = 1;
+    private int totalItems = 0;
+
+    private class FilterModel
+    {
+        public string Name { get; set; } = "";
+        public double? MinPrice { get; set; }
+        public double? MaxPrice { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+
+        await Task.Delay(100);
+        try 
+        {
+            if (_currentFilter.Any())
+            {
+                _paginationData = await service.FilterAndPagin(pageIndex, pageSize, _currentFilter);
+            }
+            else
+            {
+                _paginationData = await service.GetPagination(pageIndex, pageSize);
+            }
+            _data = _paginationData.Data;
+            totalItems = _paginationData.ItemCount;
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải dữ liệu: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearch(string value)
+    {
+        _searchText = value;
+        if (!string.IsNullOrEmpty(value))
+        {
+            _currentFilter["name"] = value;
+        }
+        else
+        {
+            _currentFilter.Remove("name");
+        }
+        pageIndex = 1; // Reset to first page when searching
+        await LoadData();
+    }
+
+    private async Task OnPageSizeChange(int newSize)
+    {
+        pageSize = newSize;
+        pageIndex = 1; // Reset to first page when changing page size
+        await LoadData();
+    }
+
+    private void ShowFilterModal()
+    {
+        _filterModel = new FilterModel
+        {
+            Name = _currentFilter.GetValueOrDefault("name", ""),
+            MinPrice = _currentFilter.ContainsKey("minPrice") ? double.Parse(_currentFilter["minPrice"]) : null,
+            MaxPrice = _currentFilter.ContainsKey("maxPrice") ? double.Parse(_currentFilter["maxPrice"]) : null
+        };
+        _filterModalVisible = true;
+    }
+
+    private async Task OnFilterOk()
+    {
+        _currentFilter.Clear();
+        if (!string.IsNullOrEmpty(_filterModel.Name))
+            _currentFilter["name"] = _filterModel.Name;
+        if (_filterModel.MinPrice.HasValue)
+            _currentFilter["minPrice"] = _filterModel.MinPrice.Value.ToString();
+        if (_filterModel.MaxPrice.HasValue)
+            _currentFilter["maxPrice"] = _filterModel.MaxPrice.Value.ToString();
+
+        _filterModalVisible = false;
+        pageIndex = 1; // Reset to first page when applying filter
+        await LoadData();
+    }
+
+    private void OnFilterCancel()
+    {
+        _filterModalVisible = false;
+    }
+
+    private async Task OnTableChange(QueryModel<ProductDto> queryModel)
+    {
+        pageIndex = queryModel.PageIndex;
+        pageSize = queryModel.PageSize;
+        await LoadData();
+    }
+
+    private void ShowCreateModal()
+    {
+        _newProduct = new ProductDto();
+        _createModalVisible = true;
+    }
+
+    private void ShowEditModal(ProductDto product)
+    {
+        _editProduct = new ProductDto
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                SalePrice = product.SalePrice,
+                MainImage = product.MainImage,
+                Image = product.Image,
+                LikeCount = product.LikeCount
+            };
+        _editModalVisible = true;
+    }
+
+    private async Task OnCreateOk()
+    {
+        try
+        {
+            var result = await service.Create(_newProduct) ?? throw new Exception("Create failed!");
+            _newProduct = new ProductDto();
+            _createModalVisible = false;
+            await LoadData();
+            MessageService.Success("Tạo sản phẩm thành công!");
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Operation failed: {ex.Message}");
+        }
+    }
+
+    private void OnCreateCancel()
+    {
+        _createModalVisible = false;
+    }
+
+    private async Task OnEditOk()
+    {
+        try
+        {
+            await service.Update(_editProduct);
+            _editModalVisible = false;
+            await LoadData();
+            MessageService.Success("Cập nhật sản phẩm thành công!");
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Operation failed: {ex.Message}");
+        }
+    }
+
+    private void OnEditCancel()
+    {
+        _editModalVisible = false;
+    }
+
+    private async Task OnDelete(string id)
+    {
+        try
+        {
+            await service.Delete(id);
+            await LoadData();
+            MessageService.Success("Xóa sản phẩm thành công!");
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Operation failed: {ex.Message}");
+        }
+    }
+}

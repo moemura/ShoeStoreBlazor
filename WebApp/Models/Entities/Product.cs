@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WebApp.Models.Entities;
 
@@ -14,4 +15,14 @@ public class Product : BaseEntity<string>
     public string? MainImage { get; set; }
     public string? Image { get; set; }
     public int LikeCount { get; set; }
+
+    // Foreign keys
+    public string? CategoryId { get; set; }
+    public string? BrandId { get; set; }
+
+    // Navigation properties
+    [ForeignKey("CategoryId")]
+    public Category? Category { get; set; }
+    [ForeignKey("BrandId")]
+    public Brand? Brand { get; set; }
 }

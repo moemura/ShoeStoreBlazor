@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
 namespace WebApp.Endpoints
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ProductsController(IProductService service) : ControllerBase
+    public class CategoriesController(ICategoryService service) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -28,14 +28,14 @@ namespace WebApp.Endpoints
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(ProductDto dto)
+        public async Task<IActionResult> Create(CategoryDto dto)
         {
             var data = await service.Create(dto);
             return Ok(data);
         }
 
         [HttpPut]
-        public async Task<IActionResult> Update(ProductDto dto)
+        public async Task<IActionResult> Update(CategoryDto dto)
         {
             await service.Update(dto);
             return Ok();
@@ -47,19 +47,5 @@ namespace WebApp.Endpoints
             await service.Delete(id);
             return Ok();
         }
-
-        [HttpGet("filter")]
-        public async Task<IActionResult> Filter([FromQuery] Dictionary<string, string> filter)
-        {
-            var data = await service.Filter(filter);
-            return Ok(data);
-        }
-
-        [HttpGet("filter/pagination/{index}&{size}")]
-        public async Task<IActionResult> FilterAndPagin(int index, int size, [FromQuery] Dictionary<string, string> filter)
-        {
-            var data = await service.FilterAndPagin(index, size, filter);
-            return Ok(data);
-        }
     }
-}
+} 

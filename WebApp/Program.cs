@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using WebApp.Components;
-using WebApp.Data;
+using WebApp.Pages.Base;
 
 namespace WebApp;
 
@@ -14,7 +13,10 @@ public class Program
         // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
+
+        // Add services before other configurations
         AddServices(builder.Services);
+
         builder.Services.AddSwaggerGen(option =>
         {
             option.SwaggerDoc("v1", new OpenApiInfo { Title = "Demo API", Version = "v1" });
@@ -28,27 +30,35 @@ public class Program
                 Scheme = "Bearer"
             });
             option.AddSecurityRequirement(new OpenApiSecurityRequirement
-         {
-             {
-                 new OpenApiSecurityScheme
-                 {
-                     Reference = new OpenApiReference
-                     {
-                         Type=ReferenceType.SecurityScheme,
-                         Id="Bearer"
-                     }
-                 },
-                 new string[]{}
-             }
-         });
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type=ReferenceType.SecurityScheme,
+                            Id="Bearer"
+                        }
+                    },
+                    new string[]{}
+                }
+            });
         });
+
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
+        
+        // Register DbContext and DbContextFactory with proper scoping
+        builder.Services.AddDbContextFactory<ShoeStoreDbContext>(options =>
+        {
+            options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
+        }, ServiceLifetime.Scoped);
 
         builder.Services.AddDbContext<ShoeStoreDbContext>(options =>
         {
             options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
-        });
+        }, ServiceLifetime.Scoped);
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
@@ -57,6 +67,10 @@ public class Program
             app.UseExceptionHandler("/Error");
             // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
             app.UseHsts();
+        }
+        else
+        {
+            app.UseDeveloperExceptionPage();
         }
 
         app.UseSwagger();
@@ -72,9 +86,15 @@ public class Program
 
         app.Run();
     }
+
     public static void AddServices(IServiceCollection services)
     {
+
         services.AddAntDesign();
+
+        // Register services with proper scoping
         services.AddScoped<IProductService, ProductService>();
+
+        // Add other services as needed
     }
 }
