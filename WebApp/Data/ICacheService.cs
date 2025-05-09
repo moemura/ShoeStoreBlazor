@@ -1,0 +1,12 @@
+using System;
+using System.Threading.Tasks;
+
+namespace WebApp.Data
+{
+    public interface ICacheService
+    {
+        Task<T> GetOrSetAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null);
+        Task RemoveAsync(string key);
+        Task RemoveByPrefixAsync(string prefixKey);
+    }
+} 

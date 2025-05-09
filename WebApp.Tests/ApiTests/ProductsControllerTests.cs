@@ -5,7 +5,7 @@ using WebApp.Endpoints;
 using WebApp.Models;
 using WebApp.Models.DTOs;
 
-namespace WebApp.Tests
+namespace WebApp.Tests.ApiTests
 {
     public class ProductsControllerTests
     {

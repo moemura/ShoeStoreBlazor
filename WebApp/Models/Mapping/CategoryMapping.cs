@@ -7,6 +7,8 @@ namespace WebApp.Models.Mapping
     {
         public static CategoryDto ToDto(this Category entity)
         {
+            if (entity == null)
+                return null;
             return new CategoryDto
             {
                 Id = entity.Id,
@@ -20,6 +22,8 @@ namespace WebApp.Models.Mapping
 
         public static Category ToEntity(this CategoryDto dto)
         {
+            if (dto == null)
+                return null;
             return new Category
             {
                 Id = dto.Id,
@@ -31,4 +35,4 @@ namespace WebApp.Models.Mapping
             };
         }
     }
-} 
+}

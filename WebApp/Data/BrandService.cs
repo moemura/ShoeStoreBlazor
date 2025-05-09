@@ -1,23 +1,31 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Models;
 using WebApp.Models.Mapping;
+using WebApp.Models.DTOs;
 
 namespace WebApp.Data
 {
     public class BrandService : IBrandService
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _dbContextFactory;
+        private readonly ICacheService _cacheService;
+        private const string CACHE_PREFIX = "Brand_";
 
-        public BrandService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory)
+        public BrandService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICacheService cacheService)
         {
             _dbContextFactory = dbContextFactory;
+            _cacheService = cacheService;
         }
 
         public async Task<IEnumerable<BrandDto>> GetAll()
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var data = await dbContext.Brands.ToListAsync();
-            return data.Select(b => b.ToDto());
+            var cacheKey = $"{CACHE_PREFIX}All";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var data = await dbContext.Brands.ToListAsync();
+                return data.Select(b => b.ToDto());
+            });
         }
 
         public async Task<BrandDto> GetById(string Id)
@@ -27,42 +35,61 @@ namespace WebApp.Data
             return brand.ToDto();
         }
 
-        public async Task<BrandDto> Create(BrandDto dto)
+        public async Task<BrandDto> Create(BrandDto brand)
         {
-            if (dto == null)
-                throw new Exception("Data must not null!");
-            
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var brand = dto.ToEntity();
-            brand.Id = Guid.CreateVersion7().ToString();
-            brand.CreatedAt = DateTime.UtcNow;
-            await dbContext.Brands.AddAsync(brand);
-            dto = brand.ToDto();
+            var entity = new Brand
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = brand.Name,
+                Description = brand.Description,
+                Logo = brand.Logo,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            dbContext.Brands.Add(entity);
             await dbContext.SaveChangesAsync();
-            return dto;
+
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
+
+            return new BrandDto
+            {
+                Id = entity.Id,
+                Name = entity.Name,
+                Description = entity.Description,
+                Logo = entity.Logo,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt
+            };
         }
 
-        public async Task Update(BrandDto dto)
+        public async Task Update(BrandDto brand)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var brand = await dbContext.Brands.FirstOrDefaultAsync(b => b.Id == dto.Id)
-                ?? throw new Exception("Brand not found!");
-            brand.UpdatedAt = DateTime.UtcNow;
-            brand.Name = dto.Name;
-            brand.Description = dto.Description;
-            brand.Logo = dto.Logo;
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
+            var entity = await _context.Brands.FindAsync(brand.Id);
+            if (entity != null)
+            {
+                entity.Name = brand.Name;
+                entity.Description = brand.Description;
+                entity.Logo = brand.Logo;
+                entity.UpdatedAt = DateTime.UtcNow;
 
-            dbContext.Update(brand);
-            await dbContext.SaveChangesAsync();
+                await _context.SaveChangesAsync();
+                await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
+            }
         }
 
         public async Task Delete(string id)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var brand = await dbContext.Brands.FirstOrDefaultAsync(b => b.Id == id)
-                ?? throw new Exception("Brand not found!");
-            dbContext.Brands.Remove(brand);
-            await dbContext.SaveChangesAsync();
+            using var _context = await _dbContextFactory.CreateDbContextAsync();
+            var brand = await _context.Brands.FindAsync(id);
+            if (brand != null)
+            {
+                _context.Brands.Remove(brand);
+                await _context.SaveChangesAsync();
+                await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
+            }
         }
 
         public async Task<IEnumerable<BrandDto>> Filter(Dictionary<string, string> filter)
@@ -109,27 +136,34 @@ namespace WebApp.Data
             };
         }
 
-        public async Task<PaginationData<BrandDto>> GetPagination(int pageIndex, int pageSize)
+        public async Task<PaginationData<BrandDto>> GetPagination(int page, int pageSize)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var totalItems = await dbContext.Brands.CountAsync();
-            var brands = await dbContext.Brands
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-            return new PaginationData<BrandDto>
+            var cacheKey = $"{CACHE_PREFIX}Page_{page}_Size_{pageSize}";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
-                Data = brands.Select(b => b.ToDto()),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                ItemCount = totalItems,
-                PageCount = pageCount,
-                HasNext = pageIndex < pageCount,
-                HasPrevious = pageIndex > 1
-            };
+                using var _context = await _dbContextFactory.CreateDbContextAsync();
+                var query = _context.Brands.AsNoTracking();
+                var totalItems = await query.CountAsync();
+                var items = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(b => new BrandDto
+                    {
+                        Id = b.Id,
+                        Name = b.Name,
+                        Description = b.Description,
+                        Logo = b.Logo,
+                        CreatedAt = b.CreatedAt,
+                        UpdatedAt = b.UpdatedAt
+                    })
+                    .ToListAsync();
+
+                return new PaginationData<BrandDto>
+                {
+                    Data = items,
+                    ItemCount = totalItems
+                };
+            });
         }
     }
 } 

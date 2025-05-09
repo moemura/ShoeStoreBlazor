@@ -59,6 +59,10 @@ public class Program
             options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
         }, ServiceLifetime.Scoped);
 
+        // Add Memory Cache
+        builder.Services.AddMemoryCache();
+        builder.Services.AddScoped<ICacheService, MemoryCacheService>();
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
@@ -94,6 +98,8 @@ public class Program
 
         // Register services with proper scoping
         services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<IBrandService, BrandService>();
 
         // Add other services as needed
     }

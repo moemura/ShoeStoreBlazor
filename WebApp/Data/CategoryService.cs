@@ -1,23 +1,32 @@
 using Microsoft.EntityFrameworkCore;
 using WebApp.Models;
 using WebApp.Models.Mapping;
+using WebApp.Models.DTOs;
 
 namespace WebApp.Data
 {
     public class CategoryService : ICategoryService
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _dbContextFactory;
+        private readonly ShoeStoreDbContext _context;
+        private readonly ICacheService _cacheService;
+        private const string CACHE_PREFIX = "Category_";
 
-        public CategoryService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory)
+        public CategoryService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICacheService cacheService)
         {
             _dbContextFactory = dbContextFactory;
+            _cacheService = cacheService;
         }
 
         public async Task<IEnumerable<CategoryDto>> GetAll()
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var data = await dbContext.Categories.ToListAsync();
-            return data.Select(c => c.ToDto());
+            var cacheKey = $"{CACHE_PREFIX}All";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var data = await dbContext.Categories.ToListAsync();
+                return data.Select(c => c.ToDto());
+            });
         }
 
         public async Task<CategoryDto> GetById(string Id)
@@ -36,9 +45,11 @@ namespace WebApp.Data
             var category = dto.ToEntity();
             category.Id = Guid.CreateVersion7().ToString();
             category.CreatedAt = DateTime.UtcNow;
+            category.UpdatedAt = DateTime.UtcNow;
             await dbContext.Categories.AddAsync(category);
             dto = category.ToDto();
             await dbContext.SaveChangesAsync();
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
             return dto;
         }
 
@@ -54,6 +65,7 @@ namespace WebApp.Data
 
             dbContext.Update(category);
             await dbContext.SaveChangesAsync();
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
         }
 
         public async Task Delete(string id)
@@ -63,6 +75,7 @@ namespace WebApp.Data
                 ?? throw new Exception("Category not found!");
             dbContext.Categories.Remove(category);
             await dbContext.SaveChangesAsync();
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
         }
 
         public async Task<IEnumerable<CategoryDto>> Filter(Dictionary<string, string> filter)
@@ -111,25 +124,29 @@ namespace WebApp.Data
 
         public async Task<PaginationData<CategoryDto>> GetPagination(int pageIndex, int pageSize)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var totalItems = await dbContext.Categories.CountAsync();
-            var categories = await dbContext.Categories
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-            return new PaginationData<CategoryDto>
+            var cacheKey = $"{CACHE_PREFIX}Page_{pageIndex}_Size_{pageSize}";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
-                Data = categories.Select(c => c.ToDto()),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                ItemCount = totalItems,
-                PageCount = pageCount,
-                HasNext = pageIndex < pageCount,
-                HasPrevious = pageIndex > 1
-            };
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var totalItems = await dbContext.Categories.CountAsync();
+                var categories = await dbContext.Categories
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+                return new PaginationData<CategoryDto>
+                {
+                    Data = categories.Select(c => c.ToDto()),
+                    PageIndex = pageIndex,
+                    PageSize = pageSize,
+                    ItemCount = totalItems,
+                    PageCount = pageCount,
+                    HasNext = pageIndex < pageCount,
+                    HasPrevious = pageIndex > 1
+                };
+            });
         }
     }
 } 

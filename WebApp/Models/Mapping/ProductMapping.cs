@@ -7,6 +7,8 @@ namespace WebApp.Models.Mapping
     {
         public static ProductDto ToDto(this Product entity)
         {
+            if (entity == null)
+                return null;
             return new ProductDto
             {
                 Id = entity.Id,
@@ -27,6 +29,8 @@ namespace WebApp.Models.Mapping
         }
         public static Product ToEntity(this ProductDto dto)
         {
+            if (dto == null)
+                return null;
             return new Product
             {
                 Id = dto.Id,

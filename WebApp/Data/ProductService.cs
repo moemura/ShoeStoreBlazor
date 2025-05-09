@@ -1,36 +1,48 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using WebApp.Models;
 using WebApp.Models.Mapping;
+using WebApp.Models.DTOs;
 
 namespace WebApp.Data
 {
     public class ProductService : IProductService
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _dbContextFactory;
+        private readonly ICacheService _cacheService;
+        private const string CACHE_PREFIX = "Product_";
 
-        public ProductService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory)
+        public ProductService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICacheService cacheService)
         {
             _dbContextFactory = dbContextFactory;
+            _cacheService = cacheService;
         }
 
         public async Task<IEnumerable<ProductDto>> GetAll()
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var data = await dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.Brand)
-                .ToListAsync();
-            return data.Select(p => p.ToDto());
+            var cacheKey = $"{CACHE_PREFIX}All";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var data = await dbContext.Products
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .ToListAsync();
+                return data.Select(p => p.ToDto());
+            });
         }
 
         public async Task<ProductDto> GetById(string Id)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var product = await dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.Brand)
-                .SingleOrDefaultAsync(p => p.Id == Id);
-            return product.ToDto();
+            var cacheKey = $"{CACHE_PREFIX}Id_{Id}";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var product = await dbContext.Products
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .SingleOrDefaultAsync(p => p.Id == Id);
+                return product.ToDto();
+            });
         }
 
         public async Task<ProductDto> Create(ProductDto dto)
@@ -58,10 +70,13 @@ namespace WebApp.Data
             var product = dto.ToEntity();
             product.Id = Guid.CreateVersion7().ToString();
             product.CreatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.UtcNow;
             await dbContext.Products.AddAsync(product);
-            dto = product.ToDto();
             await dbContext.SaveChangesAsync();
-            return dto;
+
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
+
+            return await GetById(product.Id);
         }
 
         public async Task Update(ProductDto dto)
@@ -98,6 +113,8 @@ namespace WebApp.Data
 
             dbContext.Update(product);
             await dbContext.SaveChangesAsync();
+
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
         }
 
         public async Task Delete(string id)
@@ -107,6 +124,8 @@ namespace WebApp.Data
                 ?? throw new Exception("Product not found!");
             dbContext.Products.Remove(product);
             await dbContext.SaveChangesAsync();
+
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
         }
 
         public async Task<IEnumerable<ProductDto>> Filter(Dictionary<string, string> filter)
@@ -148,80 +167,88 @@ namespace WebApp.Data
 
         public async Task<PaginationData<ProductDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var query = dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.Brand)
-                .AsQueryable();
-
-            if (filter.ContainsKey("name") && !string.IsNullOrEmpty(filter["name"]))
+            var cacheKey = $"{CACHE_PREFIX}Filter_{string.Join("_", filter.Select(f => $"{f.Key}_{f.Value}"))}_Page_{pageIndex}_Size_{pageSize}";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
-                query = query.Where(p => p.Name.Contains(filter["name"]));
-            }
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var query = dbContext.Products
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .AsQueryable();
 
-            if (filter.ContainsKey("minPrice") && double.TryParse(filter["minPrice"], out double minPrice))
-            {
-                query = query.Where(p => p.Price >= minPrice);
-            }
+                if (filter.ContainsKey("name") && !string.IsNullOrEmpty(filter["name"]))
+                {
+                    query = query.Where(p => p.Name.Contains(filter["name"]));
+                }
 
-            if (filter.ContainsKey("maxPrice") && double.TryParse(filter["maxPrice"], out double maxPrice))
-            {
-                query = query.Where(p => p.Price <= maxPrice);
-            }
+                if (filter.ContainsKey("minPrice") && double.TryParse(filter["minPrice"], out double minPrice))
+                {
+                    query = query.Where(p => p.Price >= minPrice);
+                }
 
-            if (filter.ContainsKey("categoryId") && !string.IsNullOrEmpty(filter["categoryId"]))
-            {
-                query = query.Where(p => p.CategoryId == filter["categoryId"]);
-            }
+                if (filter.ContainsKey("maxPrice") && double.TryParse(filter["maxPrice"], out double maxPrice))
+                {
+                    query = query.Where(p => p.Price <= maxPrice);
+                }
 
-            if (filter.ContainsKey("brandId") && !string.IsNullOrEmpty(filter["brandId"]))
-            {
-                query = query.Where(p => p.BrandId == filter["brandId"]);
-            }
+                if (filter.ContainsKey("categoryId") && !string.IsNullOrEmpty(filter["categoryId"]))
+                {
+                    query = query.Where(p => p.CategoryId == filter["categoryId"]);
+                }
 
-            var totalItems = await query.CountAsync();
-            var products = await query
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+                if (filter.ContainsKey("brandId") && !string.IsNullOrEmpty(filter["brandId"]))
+                {
+                    query = query.Where(p => p.BrandId == filter["brandId"]);
+                }
 
-            var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
+                var totalItems = await query.CountAsync();
+                var products = await query
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
 
-            return new PaginationData<ProductDto>
-            {
-                Data = products.Select(p => p.ToDto()),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                ItemCount = totalItems,
-                PageCount = pageCount,
-                HasNext = pageIndex < pageCount,
-                HasPrevious = pageIndex > 1
-            };
+                var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+                return new PaginationData<ProductDto>
+                {
+                    Data = products.Select(p => p.ToDto()),
+                    PageIndex = pageIndex,
+                    PageSize = pageSize,
+                    ItemCount = totalItems,
+                    PageCount = pageCount,
+                    HasNext = pageIndex < pageCount,
+                    HasPrevious = pageIndex > 1
+                };
+            });
         }
 
         public async Task<PaginationData<ProductDto>> GetPagination(int pageIndex, int pageSize)
         {
-            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var totalItems = await dbContext.Products.CountAsync();
-            var products = await dbContext.Products
-                .Include(p => p.Category)
-                .Include(p => p.Brand)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-            return new PaginationData<ProductDto>
+            var cacheKey = $"{CACHE_PREFIX}Page_{pageIndex}_Size_{pageSize}";
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
-                Data = products.Select(p => p.ToDto()),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                ItemCount = totalItems,
-                PageCount = pageCount,
-                HasNext = pageIndex < pageCount,
-                HasPrevious = pageIndex > 1
-            };
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var totalItems = await dbContext.Products.CountAsync();
+                var products = await dbContext.Products
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+                return new PaginationData<ProductDto>
+                {
+                    Data = products.Select(p => p.ToDto()),
+                    PageIndex = pageIndex,
+                    PageSize = pageSize,
+                    ItemCount = totalItems,
+                    PageCount = pageCount,
+                    HasNext = pageIndex < pageCount,
+                    HasPrevious = pageIndex > 1
+                };
+            });
         }
     }
 }

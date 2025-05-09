@@ -7,6 +7,8 @@ namespace WebApp.Models.Mapping
     {
         public static BrandDto ToDto(this Brand entity)
         {
+            if (entity == null)
+                return null;
             return new BrandDto
             {
                 Id = entity.Id,
@@ -20,6 +22,8 @@ namespace WebApp.Models.Mapping
 
         public static Brand ToEntity(this BrandDto dto)
         {
+            if (dto == null)
+                return null;
             return new Brand
             {
                 Id = dto.Id,

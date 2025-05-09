@@ -7,7 +7,7 @@ using WebApp.Models.DTOs;
 using WebApp.Models.Mapping;
 using Xunit.Abstractions;
 
-namespace WebApp.Tests
+namespace WebApp.Tests.PerformanceTests
 {
     public class ProductPerformanceTests : IDisposable
     {
@@ -232,8 +232,8 @@ namespace WebApp.Tests
                     Id = Guid.NewGuid().ToString(),
                     Name = $"Test Product {i}",
                     Description = $"Description for product {i}",
-                    Price = 100 + (i * 10),
-                    SalePrice = 90 + (i * 10),
+                    Price = 100 + i * 10,
+                    SalePrice = 90 + i * 10,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 });

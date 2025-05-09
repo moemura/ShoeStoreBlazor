@@ -23,13 +23,17 @@
                         <Icon Type="@IconType.Outline.User" />
                         <span>Người dùng</span>
             </MenuItem>
-            <MenuItem Key="5" RouterLink="/categories">
+            <MenuItem Key="5" RouterLink="/management/category">
                 <Icon Type="@IconType.Outline.FieldTime" />
                 <span>Danh mục</span>
             </MenuItem>
-            <MenuItem Key="6" >
+            <MenuItem Key="6" RouterLink="/management/brand">
+                <Icon Type="@IconType.Outline.FieldTime" />
+                <span>Thương hiệu</span>
+            </MenuItem>
+            <MenuItem Key="7" >
                 <Icon Type="@IconType.Outline.Barcode" />
-                <span>Phiếu giảm giá</span>
+                <span>Mã giảm giá</span>
             </MenuItem>
             @{
                 RenderFragment sub1Title =
@@ -39,19 +43,19 @@
                     </span>;
             }
             <SubMenu Key="sub1" TitleTemplate=sub1Title>
-                <MenuItem Key="7">
+                <MenuItem Key="8">
                     <Icon Type="@IconType.Outline.Sliders" />
-                    <span>Ban-nơ quảng cáo</span>
+                    <span>Quảng cáo</span>
                 </MenuItem>
-                    <MenuItem Key="8">
+                    <MenuItem Key="9">
                     <Icon Type="@IconType.Outline.Contacts" />
                     <span>Thông tin liên hệ</span>
                 </MenuItem>
-                <MenuItem Key="9">
+                <MenuItem Key="10">
                     <Icon Type="@IconType.Outline.Safety" />
                     <span>Phân quyền</span>
                 </MenuItem>
-                <MenuItem Key="10" RouterLink="swagger">
+                <MenuItem Key="11" RouterLink="swagger">
                     <Icon Type="@IconType.Outline.Safety" />
                     <span>Swagger</span>
                 </MenuItem>
