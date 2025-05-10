@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Hosting;
-using WebApp.Data.Interfaces;
 
-namespace WebApp.Data.Services
+namespace WebApp.Services.Files
 {
     public class FileService : IFileService
     {

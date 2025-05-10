@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using WebApp.Data.Interfaces;
+using WebApp.Services.Catches;
 
-namespace WebApp.Data.Services
+namespace WebApp.Services.Sizes
 {
     public class SizeService : ISizeService
     {

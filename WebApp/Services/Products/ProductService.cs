@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using WebApp.Services.Catches;
 
-namespace WebApp.Data.Services
+namespace WebApp.Services.Products
 {
     public class ProductService : IProductService
     {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using WebApp.Services.Catches;
 
-namespace WebApp.Data.Services
+namespace WebApp.Services.Categories
 {
     public class CategoryService : ICategoryService
     {

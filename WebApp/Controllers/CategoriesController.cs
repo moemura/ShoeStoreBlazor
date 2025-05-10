@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using WebApp.Data.Interfaces;
+using WebApp.Services.Categories;
 
 namespace WebApp.Endpoints
 {

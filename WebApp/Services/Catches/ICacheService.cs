@@ -1,4 +1,4 @@
-namespace WebApp.Data.Interfaces
+namespace WebApp.Services.Catches
 {
     public interface ICacheService
     {

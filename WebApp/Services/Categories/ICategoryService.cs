@@ -1,6 +1,6 @@
 using WebApp.Models;
 
-namespace WebApp.Data.Interfaces
+namespace WebApp.Services.Categories
 {
     public interface ICategoryService
     {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace WebApp.Data.Interfaces
+namespace WebApp.Services.Files
 {
     public interface IImageStorageService
     {

@@ -1,8 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using WebApp.Data.Interfaces;
-using WebApp.Data.Services;
 using WebApp.Pages.Base;
+using WebApp.Services.Brands;
+using WebApp.Services.Catches;
+using WebApp.Services.Categories;
+using WebApp.Services.Files;
+using WebApp.Services.Products;
+using WebApp.Services.Sizes;
 
 namespace WebApp;
 

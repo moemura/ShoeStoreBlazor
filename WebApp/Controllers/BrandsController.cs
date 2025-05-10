@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using WebApp.Data.Interfaces;
+using WebApp.Services.Brands;
 
 namespace WebApp.Endpoints
 {

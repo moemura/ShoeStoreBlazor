@@ -1,8 +1,12 @@
 ﻿@page "/products"
 @using AntDesign.TableModels
-@using WebApp.Data.Interfaces
 @using WebApp.Models
 @using WebApp.Models.DTOs
+@using WebApp.Services.Brands
+@using WebApp.Services.Categories
+@using WebApp.Services.Files
+@using WebApp.Services.Products
+@using WebApp.Services.Sizes
 @inject IProductService productService
 @inject ICategoryService categoryService
 @inject IBrandService brandService

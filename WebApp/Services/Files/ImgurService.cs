@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Components.Forms;
 using Newtonsoft.Json;
 using System.Text.Json;
-using WebApp.Data.Interfaces;
 
-namespace WebApp.Data.Services
+namespace WebApp.Services.Files
 {
     public class ImgurService : IImageStorageService
     {

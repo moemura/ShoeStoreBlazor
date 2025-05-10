@@ -1,0 +1,128 @@
+{
+  "version": "1.0",
+  "rules": {
+    "naming": {
+      "backend": {
+        "classes": "PascalCase",
+        "interfaces": "I{PascalCase}",
+        "methods": "PascalCase",
+        "properties": "PascalCase",
+        "privateFields": "_camelCase",
+        "constants": "UPPER_SNAKE_CASE"
+      },
+      "frontend": {
+        "components": "PascalCase",
+        "hooks": "use{PascalCase}",
+        "functions": "camelCase",
+        "variables": "camelCase",
+        "constants": "UPPER_SNAKE_CASE",
+        "files": {
+          "components": "{ComponentName}.tsx",
+          "hooks": "use{HookName}.ts",
+          "services": "{ServiceName}Service.ts",
+          "types": "{TypeName}.types.ts"
+        }
+      }
+    },
+    "structure": {
+      "backend": {
+        "WebApp": {
+          "Controllers": "API controllers",
+          "Services": "Business logic services",
+          "Models": "Domain models",
+          "Data": "Database context and configurations",
+          "Pages": "Blazor pages",
+          "wwwroot": "Static files"
+        }
+      },
+      "frontend": {
+        "shoestore-react": {
+          "src": {
+            "components": "Reusable UI components",
+            "features": "Feature-based modules",
+            "hooks": "Custom React hooks",
+            "services": "API services",
+            "store": "State management",
+            "utils": "Utility functions",
+            "types": "TypeScript type definitions",
+            "styles": "Global styles and themes"
+          },
+          "public": "Static assets"
+        }
+      }
+    },
+    "git": {
+      "branches": {
+        "feature": "feature/{feature-name}",
+        "bugfix": "fix/{bug-description}",
+        "hotfix": "hotfix/{issue-description}"
+      },
+      "commits": {
+        "types": [
+          "feat",
+          "fix",
+          "docs",
+          "style",
+          "refactor",
+          "test",
+          "chore"
+        ],
+        "format": "{type}: {description}"
+      }
+    },
+    "code": {
+      "backend": {
+        "maxFileLength": 500,
+        "maxMethodLength": 50,
+        "maxParameters": 5,
+        "requireXmlDocs": true
+      },
+      "frontend": {
+        "maxFileLength": 300,
+        "maxComponentLength": 200,
+        "maxHookLength": 100,
+        "requireTypes": true
+      }
+    },
+    "testing": {
+      "backend": {
+        "unitTests": "WebApp.Tests/Unit",
+        "integrationTests": "WebApp.Tests/Integration",
+        "coverage": 80
+      },
+      "frontend": {
+        "unitTests": "src/__tests__",
+        "coverage": 80
+      }
+    },
+    "documentation": {
+      "required": [
+        "README.md",
+        "API.md",
+        "SETUP.md"
+      ],
+      "components": {
+        "requireProps": true,
+        "requireExamples": true
+      }
+    },
+    "security": {
+      "noSecretsInCode": true,
+      "useEnvironmentVariables": true,
+      "validateInput": true,
+      "sanitizeOutput": true
+    },
+    "performance": {
+      "backend": {
+        "useAsync": true,
+        "implementCaching": true,
+        "usePagination": true
+      },
+      "frontend": {
+        "lazyLoad": true,
+        "optimizeImages": true,
+        "minimizeBundle": true
+      }
+    }
+  }
+} 

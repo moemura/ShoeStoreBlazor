@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Caching.Memory;
-using WebApp.Data.Interfaces;
 
-namespace WebApp.Data.Services
+namespace WebApp.Services.Catches
 {
     public class MemoryCacheService : ICacheService
     {
