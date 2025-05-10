@@ -1,9 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using WebApp.Models;
-using WebApp.Models.Mapping;
-using WebApp.Models.DTOs;
 
-namespace WebApp.Data
+namespace WebApp.Data.Services
 {
     public class CategoryService : ICategoryService
     {

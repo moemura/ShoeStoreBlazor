@@ -1,7 +1,4 @@
-using System;
-using System.Threading.Tasks;
-
-namespace WebApp.Data
+namespace WebApp.Data.Interfaces
 {
     public interface ICacheService
     {

@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using WebApp.Data;
 using WebApp.Models.DTOs;
+using Moq;
+using WebApp.Data.Interfaces;
+using WebApp.Data.Services;
 
 namespace WebApp.Tests.DataTests
 {
@@ -10,6 +13,7 @@ namespace WebApp.Tests.DataTests
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _contextFactory;
         private readonly ICategoryService _categoryService;
+        private readonly Mock<ICacheService> _mockCacheService;
 
         public CategoryServiceTests()
         {
@@ -29,7 +33,15 @@ namespace WebApp.Tests.DataTests
                 options,
                 new DbContextFactorySource<ShoeStoreDbContext>()
             );
-            _categoryService = new CategoryService(_contextFactory);
+
+            // Setup mock cache service
+            _mockCacheService = new Mock<ICacheService>();
+            _mockCacheService.Setup(x => x.GetOrSetAsync<IEnumerable<CategoryDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<CategoryDto>>>>(), It.IsAny<TimeSpan?>()))
+                .Returns((string key, Func<Task<IEnumerable<CategoryDto>>> factory, TimeSpan? expiration) => factory());
+            _mockCacheService.Setup(x => x.GetOrSetAsync<CategoryDto>(It.IsAny<string>(), It.IsAny<Func<Task<CategoryDto>>>(), It.IsAny<TimeSpan?>()))
+                .Returns((string key, Func<Task<CategoryDto>> factory, TimeSpan? expiration) => factory());
+
+            _categoryService = new CategoryService(_contextFactory, _mockCacheService.Object);
         }
 
         [Fact]
@@ -53,6 +65,9 @@ namespace WebApp.Tests.DataTests
             Assert.Equal(categoryDto.Image, result.Image);
             Assert.NotNull(result.Id);
             Assert.NotEqual(default, result.CreatedAt);
+
+            // Verify cache was invalidated
+            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -74,6 +89,9 @@ namespace WebApp.Tests.DataTests
             Assert.NotNull(result);
             Assert.Equal(created.Id, result.Id);
             Assert.Equal(categoryDto.Name, result.Name);
+
+            // Verify cache was checked
+            _mockCacheService.Verify(x => x.GetOrSetAsync<CategoryDto>(It.IsAny<string>(), It.IsAny<Func<Task<CategoryDto>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
 
         [Fact]
@@ -108,6 +126,9 @@ namespace WebApp.Tests.DataTests
             Assert.NotNull(updated);
             Assert.Equal("Updated Category", updated.Name);
             Assert.Equal("Updated Description", updated.Description);
+
+            // Verify cache was invalidated
+            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -128,6 +149,9 @@ namespace WebApp.Tests.DataTests
             // Assert
             var deleted = await _categoryService.GetById(created.Id);
             Assert.Null(deleted);
+
+            // Verify cache was invalidated
+            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -182,6 +206,30 @@ namespace WebApp.Tests.DataTests
             Assert.Equal(3, result.PageCount);
             Assert.True(result.HasNext);
             Assert.False(result.HasPrevious);
+        }
+
+        [Fact]
+        public async Task GetAll_ShouldUseCache()
+        {
+            // Arrange
+            var cachedCategories = new List<CategoryDto>
+            {
+                new CategoryDto { Id = "1", Name = "Cached Category 1" },
+                new CategoryDto { Id = "2", Name = "Cached Category 2" }
+            };
+            _mockCacheService.Setup(x => x.GetOrSetAsync<IEnumerable<CategoryDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<CategoryDto>>>>(), It.IsAny<TimeSpan?>()))
+                .Returns(Task.FromResult<IEnumerable<CategoryDto>>(cachedCategories));
+
+            // Act
+            var result = await _categoryService.GetAll();
+
+            // Assert
+            Assert.Equal(2, result.Count());
+            Assert.Equal("Cached Category 1", result.First().Name);
+            Assert.Equal("Cached Category 2", result.Last().Name);
+
+            // Verify cache was checked
+            _mockCacheService.Verify(x => x.GetOrSetAsync<IEnumerable<CategoryDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<CategoryDto>>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
     }
 } 

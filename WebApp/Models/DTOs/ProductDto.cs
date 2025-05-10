@@ -23,5 +23,10 @@ namespace WebApp.Models.DTOs
         public string? CategoryName { get; set; }
         public string? BrandId { get; set; }
         public string? BrandName { get; set; }
+
+        // Stock information
+        public int TotalQuantity { get; set; }
+
+        public IEnumerable<InventoryDto>? Inventories { get; set; }
     }
 }

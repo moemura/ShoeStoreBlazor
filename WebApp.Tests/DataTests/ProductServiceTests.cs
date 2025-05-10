@@ -5,6 +5,10 @@ using WebApp.Data;
 using WebApp.Models.DTOs;
 using WebApp.Models.Entities;
 using WebApp.Models.Mapping;
+using WebApp.Models;
+using Moq;
+using WebApp.Data.Interfaces;
+using WebApp.Data.Services;
 
 namespace WebApp.Tests.DataTests
 {
@@ -12,6 +16,7 @@ namespace WebApp.Tests.DataTests
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _contextFactory;
         private readonly IProductService _productService;
+        private readonly Mock<ICacheService> _mockCacheService;
 
         public ProductServiceTests()
         {
@@ -32,7 +37,16 @@ namespace WebApp.Tests.DataTests
                 new DbContextFactorySource<ShoeStoreDbContext>()
             );
 
-            _productService = new ProductService(_contextFactory);
+            // Setup mock cache service
+            _mockCacheService = new Mock<ICacheService>();
+            _mockCacheService.Setup(x => x.GetOrSetAsync<IEnumerable<ProductDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<ProductDto>>>>(), It.IsAny<TimeSpan?>()))
+                .Returns((string key, Func<Task<IEnumerable<ProductDto>>> factory, TimeSpan? expiration) => factory());
+            _mockCacheService.Setup(x => x.GetOrSetAsync<ProductDto>(It.IsAny<string>(), It.IsAny<Func<Task<ProductDto>>>(), It.IsAny<TimeSpan?>()))
+                .Returns((string key, Func<Task<ProductDto>> factory, TimeSpan? expiration) => factory());
+            _mockCacheService.Setup(x => x.GetOrSetAsync<PaginationData<ProductDto>>(It.IsAny<string>(), It.IsAny<Func<Task<PaginationData<ProductDto>>>>(), It.IsAny<TimeSpan?>()))
+                .Returns((string key, Func<Task<PaginationData<ProductDto>>> factory, TimeSpan? expiration) => factory());
+
+            _productService = new ProductService(_contextFactory, _mockCacheService.Object);
 
             // Clear database before each test
             using var context = _contextFactory.CreateDbContext();
@@ -60,6 +74,9 @@ namespace WebApp.Tests.DataTests
             Assert.Equal(2, result.Count());
             Assert.Contains(result, p => p.Name == "Test Product 1");
             Assert.Contains(result, p => p.Name == "Test Product 2");
+
+            // Verify cache was checked
+            _mockCacheService.Verify(x => x.GetOrSetAsync<IEnumerable<ProductDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<ProductDto>>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
 
         [Fact]
@@ -78,6 +95,9 @@ namespace WebApp.Tests.DataTests
             Assert.NotNull(result);
             Assert.Equal("Test Product", result.Name);
             Assert.Equal(100, result.Price);
+
+            // Verify cache was checked
+            _mockCacheService.Verify(x => x.GetOrSetAsync<ProductDto>(It.IsAny<string>(), It.IsAny<Func<Task<ProductDto>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
 
         [Fact]
@@ -97,7 +117,7 @@ namespace WebApp.Tests.DataTests
             var productDto = new ProductDto
             {
                 Name = "New Product",
-                Description = "Test Description", // Added description  
+                Description = "Test Description",
                 Price = 100,
                 SalePrice = 80
             };
@@ -108,7 +128,7 @@ namespace WebApp.Tests.DataTests
             // Assert  
             Assert.NotNull(result);
             Assert.Equal("New Product", result.Name);
-            Assert.Equal("Test Description", result.Description); // Assert description  
+            Assert.Equal("Test Description", result.Description);
             Assert.Equal(100, result.Price);
             Assert.Equal(80, result.SalePrice);
             Assert.NotNull(result.Id);
@@ -119,7 +139,10 @@ namespace WebApp.Tests.DataTests
             var createdProduct = await context.Products.FindAsync(result.Id);
             Assert.NotNull(createdProduct);
             Assert.Equal("New Product", createdProduct.Name);
-            Assert.Equal("Test Description", createdProduct.Description); // Verify description  
+            Assert.Equal("Test Description", createdProduct.Description);
+
+            // Verify cache was invalidated
+            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -135,7 +158,7 @@ namespace WebApp.Tests.DataTests
             {
                 Id = "1",
                 Name = "Updated Name",
-                Description = "Updated Description", // Added description  
+                Description = "Updated Description",
                 Price = 200
             };
 
@@ -147,8 +170,11 @@ namespace WebApp.Tests.DataTests
             var updatedProduct = await verifyContext.Products.FindAsync("1");
             Assert.NotNull(updatedProduct);
             Assert.Equal("Updated Name", updatedProduct.Name);
-            Assert.Equal("Updated Description", updatedProduct.Description); // Verify description  
+            Assert.Equal("Updated Description", updatedProduct.Description);
             Assert.Equal(200, updatedProduct.Price);
+
+            // Verify cache was invalidated
+            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -167,6 +193,9 @@ namespace WebApp.Tests.DataTests
             using var verifyContext = _contextFactory.CreateDbContext();
             var deletedProduct = await verifyContext.Products.FindAsync("1");
             Assert.Null(deletedProduct);
+
+            // Verify cache was invalidated
+            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -225,27 +254,34 @@ namespace WebApp.Tests.DataTests
         }
 
         [Fact]
-        public async Task GetPagination_ShouldReturnCorrectPage()
+        public async Task GetPagination_ShouldUseCache()
         {
             // Arrange
-            using var context = _contextFactory.CreateDbContext();
-            var products = new List<Product>();
-            for (int i = 1; i <= 10; i++)
+            var cachedData = new PaginationData<ProductDto>
             {
-                products.Add(new Product { Id = i.ToString(), Name = $"Product {i}", Description = "For Test", Price = i * 100 });
-            }
-            await context.Products.AddRangeAsync(products);
-            await context.SaveChangesAsync();
+                Data = new List<ProductDto>
+                {
+                    new ProductDto { Id = "1", Name = "Cached Product 1" },
+                    new ProductDto { Id = "2", Name = "Cached Product 2" }
+                },
+                ItemCount = 2,
+                PageCount = 1,
+                HasNext = false,
+                HasPrevious = false
+            };
+            _mockCacheService.Setup(x => x.GetOrSetAsync<PaginationData<ProductDto>>(It.IsAny<string>(), It.IsAny<Func<Task<PaginationData<ProductDto>>>>(), It.IsAny<TimeSpan?>()))
+                .Returns(Task.FromResult(cachedData));
 
             // Act
-            var result = await _productService.GetPagination(2, 4);
+            var result = await _productService.GetPagination(1, 10);
 
             // Assert
-            Assert.Equal(4, result.Data.Count());
-            Assert.Equal(10, result.ItemCount);
-            Assert.Equal(3, result.PageCount);
-            Assert.True(result.HasNext);
-            Assert.True(result.HasPrevious);
+            Assert.Equal(2, result.Data.Count());
+            Assert.Equal("Cached Product 1", result.Data.First().Name);
+            Assert.Equal("Cached Product 2", result.Data.Last().Name);
+
+            // Verify cache was checked
+            _mockCacheService.Verify(x => x.GetOrSetAsync<PaginationData<ProductDto>>(It.IsAny<string>(), It.IsAny<Func<Task<PaginationData<ProductDto>>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
 
         [Fact]
@@ -396,7 +432,6 @@ namespace WebApp.Tests.DataTests
                 Price = 100,
                 SalePrice = 80,
                 MainImage = "main.jpg",
-                Image = "image.jpg",
                 LikeCount = 0
             };
 
@@ -424,7 +459,6 @@ namespace WebApp.Tests.DataTests
                 Price = 100,
                 SalePrice = 80,
                 MainImage = "main.jpg",
-                Image = "image.jpg",
                 LikeCount = 0
             };
             var created = await _productService.Create(productDto);
@@ -439,7 +473,6 @@ namespace WebApp.Tests.DataTests
             Assert.Equal(100, result.Price);
             Assert.Equal(80, result.SalePrice);
             Assert.Equal("main.jpg", result.MainImage);
-            Assert.Equal("image.jpg", result.Image);
             Assert.Equal(0, result.LikeCount);
         }
 
@@ -454,7 +487,6 @@ namespace WebApp.Tests.DataTests
                 Price = 100,
                 SalePrice = 80,
                 MainImage = "main.jpg",
-                Image = "image.jpg",
                 LikeCount = 0
             };
             var created = await _productService.Create(productDto);
@@ -473,10 +505,8 @@ namespace WebApp.Tests.DataTests
             Assert.Equal(100, updatedProduct.Price);
             Assert.Equal(80, updatedProduct.SalePrice);
             Assert.Equal("main.jpg", updatedProduct.MainImage);
-            Assert.Equal("image.jpg", updatedProduct.Image);
             Assert.Equal(0, updatedProduct.LikeCount);
         }
-
 
         [Fact]
         public async Task GetPagination_ReturnsCorrectPage()

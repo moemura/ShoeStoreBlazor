@@ -1,6 +1,6 @@
 using WebApp.Models;
 
-namespace WebApp.Data
+namespace WebApp.Data.Interfaces
 {
     public interface IBrandService
     {

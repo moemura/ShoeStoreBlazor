@@ -1,6 +1,6 @@
 ﻿using WebApp.Models;
 
-namespace WebApp.Data
+namespace WebApp.Data.Interfaces
 {
     public interface IProductService
     {
@@ -12,5 +12,6 @@ namespace WebApp.Data
         Task<ProductDto> GetById(string Id);
         Task<PaginationData<ProductDto>> GetPagination(int pageIndex, int pageSize);
         Task Update(ProductDto dto);
+        Task Stock(string productId, IEnumerable<InventoryDto> inventories);
     }
 }

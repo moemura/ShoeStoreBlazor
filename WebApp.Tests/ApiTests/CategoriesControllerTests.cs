@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
-using WebApp.Data;
+using WebApp.Data.Interfaces;
 using WebApp.Endpoints;
 using WebApp.Models;
 using WebApp.Models.DTOs;
-using Xunit;
 
 namespace WebApp.Tests.ApiTests
 {

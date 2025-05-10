@@ -1,11 +1,13 @@
-﻿@page "/management/product"
+﻿@page "/products"
 @using AntDesign.TableModels
+@using WebApp.Data.Interfaces
 @using WebApp.Models
 @using WebApp.Models.DTOs
 @inject IProductService productService
 @inject ICategoryService categoryService
 @inject IBrandService brandService
-@inject IImgurService imgurService
+@inject ISizeService sizeService
+@inject IImageStorageService imgurService
 @inject MessageService MessageService
 
 
@@ -80,15 +82,25 @@
         <Avatar Size="@("4rem")" Src="@context.MainImage" />
     </ActionColumn>
     <PropertyColumn Property="c=>c.Name" Title="Tên sản phẩm" />
-    <PropertyColumn Property="c=>c.Description" Title="Mô tả" />
-    <PropertyColumn Property="c=>c.Price" Title="Giá" Format="N0" />
-    <PropertyColumn Property="c=>c.SalePrice" Title="Giá khuyến mãi" Format="N0" />
     <PropertyColumn Property="c=>c.CategoryName" Title="Danh mục" />
     <PropertyColumn Property="c=>c.BrandName" Title="Thương hiệu" />
+    <PropertyColumn Property="c=>c.Price" Title="Giá" Format="N0" />
+    <PropertyColumn Property="c=>c.SalePrice" Title="Giá khuyến mãi" Format="N0" />
     <PropertyColumn Property="c=>c.LikeCount" Title="Lượt thích" />
-    <PropertyColumn Property="c=>c.CreatedAt" Title="Ngày tạo" Format="dd/MM/yyyy" />
+    <PropertyColumn Property="c=>c.TotalQuantity" Title="Số lượng" />
+    <ActionColumn Title="Tồn kho">
+        @foreach (var inventory in context.Inventories)
+        {
+            <Tag Color="TagColor.Blue">Size@(inventory.SizeId): @inventory.Quantity</Tag>
+        }
+    </ActionColumn>
     <ActionColumn Title="Thao tác">
         <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" OnClick="() => ShowInventoryModal(context)">
+                    <Icon Type="appstore-add" />
+                </Button>
+            </SpaceItem>
             <SpaceItem>
                 <Button Type="@ButtonType.Primary" OnClick="() => ShowEditModal(context)">
                     <Icon Type="edit" />
@@ -116,89 +128,123 @@
     <Form Model="@_newProduct" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <Row>
             <Col Span="12">
-                <FormItem Label="Tên sản phẩm">
-                    <Input @bind-Value="@_newProduct.Name" />
-                </FormItem>
-                <FormItem Label="Mô tả">
-                    <TextArea @bind-Value="@_newProduct.Description" />
-                </FormItem>
-                <FormItem Label="Danh mục">
-                    <Select TItem="string"
-                            TItemValue="string"
-                            @bind-Value="@_newProduct.CategoryId"
-                            Placeholder="Chọn danh mục">
-                        <SelectOptions>
+            <FormItem Label="Tên sản phẩm">
+                <Input @bind-Value="@_newProduct.Name" />
+            </FormItem>
+            <FormItem Label="Mô tả">
+                <TextArea @bind-Value="@_newProduct.Description" />
+            </FormItem>
+            <FormItem Label="Danh mục">
+                <Select TItem="string"
+                        TItemValue="string"
+                        @bind-Value="@_newProduct.CategoryId"
+                        Placeholder="Chọn danh mục">
+                    <SelectOptions>
                             @foreach (var category in _categories)
                             {
-                                <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
+                            <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
                             }
-                        </SelectOptions>
-                    </Select>
-                </FormItem>
-                <FormItem Label="Thương hiệu">
-                    <Select TItem="string"
-                            TItemValue="string"
-                            @bind-Value="@_newProduct.BrandId"
-                            Placeholder="Chọn thương hiệu">
-                        <SelectOptions>
+                    </SelectOptions>
+                </Select>
+            </FormItem>
+            <FormItem Label="Thương hiệu">
+                <Select TItem="string"
+                        TItemValue="string"
+                        @bind-Value="@_newProduct.BrandId"
+                        Placeholder="Chọn thương hiệu">
+                    <SelectOptions>
                             @foreach (var brand in _brands)
                             {
-                                <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
+                            <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
                             }
-                        </SelectOptions>
-                    </Select>
-                </FormItem>
-                <FormItem Label="Giá">
-                    <AntDesign.InputNumber @bind-Value="@_newProduct.Price" Style="width: 100%" />
-                </FormItem>
-                <FormItem Label="Giá khuyến mãi">
-                    <AntDesign.InputNumber @bind-Value="@_newProduct.SalePrice" Style="width: 100%" />
-                </FormItem>
+                    </SelectOptions>
+                </Select>
+            </FormItem>
+            <FormItem Label="Giá">
+                <AntDesign.InputNumber @bind-Value="@_newProduct.Price" Style="width: 100%" />
+            </FormItem>
+            <FormItem Label="Giá khuyến mãi">
+                <AntDesign.InputNumber @bind-Value="@_newProduct.SalePrice" Style="width: 100%" />
+            </FormItem>
             </Col>
             <Col Span="12">
-                <FormItem Label="Ảnh chính">
-                    <InputFile id="createMainImageInput" OnChange="@OnCreateMainImageChange" hidden />
-                    <Upload FileList="@_createMainImageFileList">
-                        <label class="ant-btn" for="createMainImageInput">
-                            <Icon Type="@IconType.Outline.Upload" />
-                            Chọn ảnh chính
-                        </label>
-                    </Upload>
+            <FormItem Label="Ảnh chính">
+                <InputFile id="createMainImageInput" OnChange="@OnCreateMainImageChange" hidden />
+                <Upload FileList="@_createMainImageFileList">
+                    <label class="ant-btn" for="createMainImageInput">
+                        <Icon Type="@IconType.Outline.Upload" />
+                            @if (_createMainImageLoading)
+                            {
+                            <Spin Size="@SpinSize.Small" Style="margin-left: 8px;" />
+                            }
+                            else
+                            {
+                            <span>Chọn ảnh chính</span>
+                            }
+                    </label>
+                </Upload>
                     @if (!string.IsNullOrEmpty(_newProduct.MainImage))
                     {
-                        <div style="margin-top: 10px;">
-                            <Image Src="@_newProduct.MainImage" Style="width: 200px; height: 200px; object-fit: cover;" />
-                        </div>
+                    <div style="margin-top: 10px;">
+                        <Image Src="@_newProduct.MainImage" Style="width: 200px; height: 200px; object-fit: cover;" />
+                    </div>
                     }
-                </FormItem>
-                <FormItem Label="Ảnh phụ">
-                    <InputFile id="createImagesInput" OnChange="@OnCreateImagesChange" hidden multiple />
-                    <Upload FileList="@_createImageFileList" Multiple>
-                        <label class="ant-btn" for="createImagesInput">
-                            <Icon Type="@IconType.Outline.Upload" />
-                            Chọn ảnh phụ
-                        </label>
-                    </Upload>
-                    <Upload Drag>
-                        <InputFile OnChange="@OnCreateImagesChange" style="position: absolute; width: 100%; height: 100%; opacity: 0; top: 0; left: 0; z-index: 2;" multiple />
-                        <p class="ant-upload-drag-icon">
-                            <Icon Type="@IconType.Outline.Inbox" />
-                        </p>
-                        <p class="ant-upload-text">Kéo thả ảnh vào đây để tải lên</p>
-                        <p class="ant-upload-hint">
-                            Hỗ trợ tải lên một hoặc nhiều ảnh. Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png)
-                        </p>
-                    </Upload>
+            </FormItem>
+            <FormItem Label="Ảnh phụ">
+                <InputFile id="createImagesInput" OnChange="@OnCreateImagesChange" hidden multiple />
+                <Upload FileList="@_createImageFileList" Multiple>
+                    <label class="ant-btn" for="createImagesInput">
+                        <Icon Type="@IconType.Outline.Upload" />
+                            @if (_createImagesLoading)
+                            {
+                            <Spin Size="@SpinSize.Small" Style="margin-left: 8px;" />
+                            }
+                            else
+                            {
+                            <span>Chọn ảnh phụ</span>
+                            }
+                    </label>
+                </Upload>
+                <Upload Drag>
+                    <InputFile OnChange="@OnCreateImagesChange" style="position: absolute; width: 100%; height: 100%; opacity: 0; top: 0; left: 0; z-index: 2;" multiple />
+                    <p class="ant-upload-drag-icon">
+                        <Icon Type="@IconType.Outline.Inbox" />
+                    </p>
+                    <p class="ant-upload-text">
+                            @if (_createImagesLoading)
+                            {
+                            <Spin Size="@SpinSize.Small" />
+                            }
+                            else
+                            {
+                            <span>Kéo thả ảnh vào đây để tải lên</span>
+                            }
+                    </p>
+                    <p class="ant-upload-hint">
+                        Hỗ trợ tải lên một hoặc nhiều ảnh. Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png)
+                    </p>
+                </Upload>
                     @if (_newProduct.Images != null && _newProduct.Images.Any())
                     {
-                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                            @foreach (var image in _newProduct.Images)
-                            {
-                                <Image Src="@image" Style="width: 100px; height: 100px; object-fit: cover;" />
-                            }
-                        </div>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <ImagePreviewGroup>
+                                @foreach (var image in _newProduct.Images)
+                                {
+                                <div style="position: relative;">
+                                    <Image Src="@image" Style="width: 100px; height: 100px; object-fit: cover;" />
+                                    <Button Type="@ButtonType.Primary"
+                                            Danger
+                                            Shape="@ButtonShape.Circle"
+                                            Style="position: absolute; top: -8px; right: -8px; padding: 0; width: 20px; height: 20px; min-width: 20px;"
+                                            OnClick="@(() => RemoveCreateImage(image))">
+                                        <Icon Type="close" />
+                                    </Button>
+                                </div>
+                                }
+                        </ImagePreviewGroup>
+                    </div>
                     }
-                </FormItem>
+            </FormItem>
             </Col>
         </Row>
     </Form>
@@ -212,89 +258,123 @@
     <Form Model="@_editProduct" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
         <Row>
             <Col Span="12">
-                <FormItem Label="Tên sản phẩm">
-                    <Input @bind-Value="@_editProduct.Name" />
-                </FormItem>
-                <FormItem Label="Mô tả">
-                    <TextArea @bind-Value="@_editProduct.Description" />
-                </FormItem>
-                <FormItem Label="Danh mục">
-                    <Select TItem="string"
-                            TItemValue="string"
-                            @bind-Value="@_editProduct.CategoryId"
-                            Placeholder="Chọn danh mục">
-                        <SelectOptions>
+            <FormItem Label="Tên sản phẩm">
+                <Input @bind-Value="@_editProduct.Name" />
+            </FormItem>
+            <FormItem Label="Mô tả">
+                <TextArea @bind-Value="@_editProduct.Description" />
+            </FormItem>
+            <FormItem Label="Danh mục">
+                <Select TItem="string"
+                        TItemValue="string"
+                        @bind-Value="@_editProduct.CategoryId"
+                        Placeholder="Chọn danh mục">
+                    <SelectOptions>
                             @foreach (var category in _categories)
                             {
-                                <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
+                            <SelectOption TItem="string" TItemValue="string" Value="@category.Id" Label="@category.Name" />
                             }
-                        </SelectOptions>
-                    </Select>
-                </FormItem>
-                <FormItem Label="Thương hiệu">
-                    <Select TItem="string"
-                            TItemValue="string"
-                            @bind-Value="@_editProduct.BrandId"
-                            Placeholder="Chọn thương hiệu">
-                        <SelectOptions>
+                    </SelectOptions>
+                </Select>
+            </FormItem>
+            <FormItem Label="Thương hiệu">
+                <Select TItem="string"
+                        TItemValue="string"
+                        @bind-Value="@_editProduct.BrandId"
+                        Placeholder="Chọn thương hiệu">
+                    <SelectOptions>
                             @foreach (var brand in _brands)
                             {
-                                <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
+                            <SelectOption TItem="string" TItemValue="string" Value="@brand.Id" Label="@brand.Name" />
                             }
-                        </SelectOptions>
-                    </Select>
-                </FormItem>
-                <FormItem Label="Giá">
-                    <AntDesign.InputNumber @bind-Value="@_editProduct.Price" Style="width: 100%" />
-                </FormItem>
-                <FormItem Label="Giá khuyến mãi">
-                    <AntDesign.InputNumber @bind-Value="@_editProduct.SalePrice" Style="width: 100%" />
-                </FormItem>
+                    </SelectOptions>
+                </Select>
+            </FormItem>
+            <FormItem Label="Giá">
+                <AntDesign.InputNumber @bind-Value="@_editProduct.Price" Style="width: 100%" />
+            </FormItem>
+            <FormItem Label="Giá khuyến mãi">
+                <AntDesign.InputNumber @bind-Value="@_editProduct.SalePrice" Style="width: 100%" />
+            </FormItem>
             </Col>
             <Col Span="12">
-                <FormItem Label="Ảnh chính">
-                    <InputFile id="editMainImageInput" OnChange="@OnEditMainImageChange" hidden />
-                    <Upload FileList="@_editMainImageFileList">
-                        <label class="ant-btn" for="editMainImageInput">
-                            <Icon Type="@IconType.Outline.Upload" />
-                            Chọn ảnh chính
-                        </label>
-                    </Upload>
+            <FormItem Label="Ảnh chính">
+                <InputFile id="editMainImageInput" OnChange="@OnEditMainImageChange" hidden />
+                <Upload FileList="@_editMainImageFileList">
+                    <label class="ant-btn" for="editMainImageInput">
+                        <Icon Type="@IconType.Outline.Upload" />
+                            @if (_editMainImageLoading)
+                            {
+                            <Spin Size="@SpinSize.Small" Style="margin-left: 8px;" />
+                            }
+                            else
+                            {
+                            <span>Chọn ảnh chính</span>
+                            }
+                    </label>
+                </Upload>
                     @if (!string.IsNullOrEmpty(_editProduct.MainImage))
                     {
-                        <div style="margin-top: 10px;">
-                            <Image Src="@_editProduct.MainImage" Style="width: 200px; height: 200px; object-fit: cover;" />
-                        </div>
+                    <div style="margin-top: 10px;">
+                        <Image Src="@_editProduct.MainImage" Style="width: 200px; height: 200px; object-fit: cover;" />
+                    </div>
                     }
-                </FormItem>
-                <FormItem Label="Ảnh phụ">
-                    <InputFile id="editImagesInput" OnChange="@OnEditImagesChange" hidden multiple />
-                    <Upload FileList="@_editImageFileList" Multiple>
-                        <label class="ant-btn" for="editImagesInput">
-                            <Icon Type="@IconType.Outline.Upload" />
-                            Chọn ảnh phụ
-                        </label>
-                    </Upload>
-                    <Upload Drag>
-                        <InputFile OnChange="@OnEditImagesChange" style="position: absolute; width: 100%; height: 100%; opacity: 0; top: 0; left: 0; z-index: 2;" multiple />
-                        <p class="ant-upload-drag-icon">
-                            <Icon Type="@IconType.Outline.Inbox" />
-                        </p>
-                        <p class="ant-upload-text">Kéo thả ảnh vào đây để tải lên</p>
-                        <p class="ant-upload-hint">
-                            Hỗ trợ tải lên một hoặc nhiều ảnh. Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png)
-                        </p>
-                    </Upload>
+            </FormItem>
+            <FormItem Label="Ảnh phụ">
+                <InputFile id="editImagesInput" OnChange="@OnEditImagesChange" hidden multiple />
+                <Upload FileList="@_editImageFileList" Multiple>
+                    <label class="ant-btn" for="editImagesInput">
+                        <Icon Type="@IconType.Outline.Upload" />
+                            @if (_editImagesLoading)
+                            {
+                            <Spin Size="@SpinSize.Small" Style="margin-left: 8px;" />
+                            }
+                            else
+                            {
+                            <span>Chọn ảnh phụ</span>
+                            }
+                    </label>
+                </Upload>
+                <Upload Drag>
+                    <InputFile OnChange="@OnEditImagesChange" style="position: absolute; width: 100%; height: 100%; opacity: 0; top: 0; left: 0; z-index: 2;" multiple />
+                    <p class="ant-upload-drag-icon">
+                        <Icon Type="@IconType.Outline.Inbox" />
+                    </p>
+                    <p class="ant-upload-text">
+                            @if (_editImagesLoading)
+                            {
+                            <Spin Size="@SpinSize.Small" />
+                            }
+                            else
+                            {
+                            <span>Kéo thả ảnh vào đây để tải lên</span>
+                            }
+                    </p>
+                    <p class="ant-upload-hint">
+                        Hỗ trợ tải lên một hoặc nhiều ảnh. Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png)
+                    </p>
+                </Upload>
                     @if (_editProduct.Images != null && _editProduct.Images.Any())
                     {
-                        <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                            @foreach (var image in _editProduct.Images)
-                            {
-                                <Image Src="@image" Style="width: 100px; height: 100px; object-fit: cover;" />
-                            }
-                        </div>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <ImagePreviewGroup>
+                                @foreach (var image in _editProduct.Images)
+                                {
+                                <div style="position: relative;">
+                                    <Image Src="@image" Style="width: 100px; height: 100px; object-fit: cover;" />
+                                    <Button Type="@ButtonType.Primary"
+                                            Danger
+                                            Shape="@ButtonShape.Circle"
+                                            Style="position: absolute; top: -8px; right: -8px; padding: 0; width: 20px; height: 20px; min-width: 20px;"
+                                            OnClick="@(() => RemoveEditImage(image))">
+                                        <Icon Type="close" />
+                                    </Button>
+                                </div>
+                                }
+                        </ImagePreviewGroup>
+                    </div>
                     }
-                </FormItem>
+            </FormItem>
             </Col>
         </Row>
     </Form>
@@ -344,8 +424,33 @@
     </Form>
 </Modal>
 
+<Modal Title="@("Quản lý tồn kho")"
+       Visible="@_inventoryModalVisible"
+       OnOk="@OnInventoryOk"
+       OnCancel="@OnInventoryCancel"
+       Width="600">
+    <Form Model="@_inventoryModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <FormItem Label="Sản phẩm">
+            <Input @bind-Value="@_currentProduct.Name" Disabled="true" />
+        </FormItem>
+        <FormItem Label="Tồn kho theo size">
+            <Space Direction="SpaceDirection.Vertical" Style="width: 100%">
+                @foreach (var size in _sizes)
+                {
+                    <SpaceItem>
+                        <Text>Size @size:</Text>
+                        <AntDesign.InputNumber @bind-Value="@_inventoryModel[size]" Style="width: 100%" Min="0" />
+                    </SpaceItem>
+                }
+            </Space>
+        </FormItem>
+    </Form>
+</Modal>
+
 @code {
+
     private IEnumerable<ProductDto> _data = [];
+    private IEnumerable<string> _sizes = [];
     private ITable _table;
     private ProductDto _newProduct = new();
     private ProductDto _editProduct = new();
@@ -374,6 +479,15 @@
     private List<UploadFileItem> _editMainImageFileList = new();
     private List<UploadFileItem> _editImageFileList = new();
 
+    private bool _createMainImageLoading = false;
+    private bool _createImagesLoading = false;
+    private bool _editMainImageLoading = false;
+    private bool _editImagesLoading = false;
+
+    private bool _inventoryModalVisible = false;
+    private ProductDto _currentProduct = new();
+    private Dictionary<string, int> _inventoryModel = new();
+
     private class FilterModel
     {
         public string Name { get; set; } = "";
@@ -392,6 +506,8 @@
     {
         await LoadCategories();
         await LoadBrands();
+
+        _sizes = (await sizeService.GetAll()).Select(p => p.Id).ToList();
     }
 
 
@@ -523,24 +639,37 @@
     private void ShowEditModal(ProductDto product)
     {
         _editProduct = new ProductDto
-        {
-            Id = product.Id,
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price,
-            SalePrice = product.SalePrice,
-            CategoryId = product.CategoryId,
-            BrandId = product.BrandId,
-            MainImage = product.MainImage,
-            Images = product.Images?.ToList() ?? new List<string>()
-        };
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                SalePrice = product.SalePrice,
+                CategoryId = product.CategoryId,
+                BrandId = product.BrandId,
+                MainImage = product.MainImage,
+                Images = product.Images?.ToList() ?? new List<string>()
+            };
         _editMainImageFile = null;
         _editImageFiles = new();
         _editMainImageFileList = new();
         _editImageFileList = new();
         _editModalVisible = true;
     }
+    private void ShowInventoryModal(ProductDto product)
+    {
+        _currentProduct = product;
+        _inventoryModel = new Dictionary<string, int>();
 
+        // Initialize inventory model with existing quantities
+        foreach (var size in _sizes)
+        {
+            var existingInventory = product.Inventories?.FirstOrDefault(i => i.SizeId == size);
+            _inventoryModel[size] = existingInventory?.Quantity ?? 0;
+        }
+
+        _inventoryModalVisible = true;
+    }
     private async Task OnCreateOk()
     {
         try
@@ -616,6 +745,7 @@
     {
         try
         {
+            _createMainImageLoading = true;
             _createMainImageFile = e.File;
             if (_createMainImageFile != null)
             {
@@ -627,19 +757,24 @@
         {
             MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
         }
+        finally
+        {
+            _createMainImageLoading = false;
+        }
     }
 
     private async Task OnCreateImagesChange(InputFileChangeEventArgs e)
     {
         try
         {
+            _createImagesLoading = true;
             var newFiles = e.GetMultipleFiles().ToList();
             if (newFiles.Any())
             {
                 var newImageUrls = await imgurService.UploadImagesAsync(newFiles);
                 _newProduct.Images ??= new List<string>();
                 _newProduct.Images.AddRange(newImageUrls);
-                
+
                 _createImageFiles.AddRange(newFiles);
                 _createImageFileList.AddRange(newFiles.Select(file => new UploadFileItem { FileName = file.Name, Size = file.Size }));
             }
@@ -648,12 +783,17 @@
         {
             MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
         }
+        finally
+        {
+            _createImagesLoading = false;
+        }
     }
 
     private async Task OnEditMainImageChange(InputFileChangeEventArgs e)
     {
         try
         {
+            _editMainImageLoading = true;
             _editMainImageFile = e.File;
             if (_editMainImageFile != null)
             {
@@ -665,19 +805,24 @@
         {
             MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
         }
+        finally
+        {
+            _editMainImageLoading = false;
+        }
     }
 
     private async Task OnEditImagesChange(InputFileChangeEventArgs e)
     {
         try
         {
+            _editImagesLoading = true;
             var newFiles = e.GetMultipleFiles().ToList();
             if (newFiles.Any())
             {
                 var newImageUrls = await imgurService.UploadImagesAsync(newFiles);
                 _editProduct.Images ??= new List<string>();
                 _editProduct.Images.AddRange(newImageUrls);
-                
+
                 _editImageFiles.AddRange(newFiles);
                 _editImageFileList.AddRange(newFiles.Select(file => new UploadFileItem { FileName = file.Name, Size = file.Size }));
             }
@@ -686,5 +831,70 @@
         {
             MessageService.Error($"Lỗi khi tải ảnh lên: {ex.Message}");
         }
+        finally
+        {
+            _editImagesLoading = false;
+        }
+    }
+
+    private void RemoveCreateImage(string imageUrl)
+    {
+        if (_newProduct.Images != null)
+        {
+            _newProduct.Images.Remove(imageUrl);
+            var index = _createImageFileList.FindIndex(f => f.FileName == imageUrl);
+            if (index != -1)
+            {
+                _createImageFileList.RemoveAt(index);
+                _createImageFiles.RemoveAt(index);
+            }
+        }
+    }
+
+    private void RemoveEditImage(string imageUrl)
+    {
+        if (_editProduct.Images != null)
+        {
+            _editProduct.Images.Remove(imageUrl);
+            var index = _editImageFileList.FindIndex(f => f.FileName == imageUrl);
+            if (index != -1)
+            {
+                _editImageFileList.RemoveAt(index);
+                _editImageFiles.RemoveAt(index);
+            }
+        }
+    }
+
+    private async Task OnInventoryOk()
+    {
+        try
+        {
+            var inventories = _inventoryModel
+                .Where(kvp => 
+                    // Include if quantity > 0 and size doesn't exist in current inventory
+                    (kvp.Value > 0 && !_currentProduct.Inventories.Any(i => i.SizeId == kvp.Key)) ||
+                    // Or if size exists in current inventory (update regardless of quantity)
+                    _currentProduct.Inventories.Any(i => i.SizeId == kvp.Key))
+                .Select(kvp => new InventoryDto
+                {
+                    ProductId = _currentProduct.Id,
+                    SizeId = kvp.Key,
+                    Quantity = kvp.Value
+                });
+
+            await productService.Stock(_currentProduct.Id, inventories);
+            MessageService.Success("Cập nhật tồn kho thành công!");
+            _inventoryModalVisible = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi cập nhật tồn kho: {ex.Message}");
+        }
+    }
+
+    private void OnInventoryCancel()
+    {
+        _inventoryModalVisible = false;
     }
 }

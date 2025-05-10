@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using WebApp.Data.Interfaces;
+using WebApp.Data.Services;
 using WebApp.Pages.Base;
 
 namespace WebApp;
@@ -83,7 +85,10 @@ public class Program
 
         app.UseAntiforgery();
         app.MapControllers();
-
+        app.UseCors(o =>
+        {
+            o.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        });
         app.MapStaticAssets();
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
@@ -100,8 +105,9 @@ public class Program
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IBrandService, BrandService>();
+        services.AddScoped<ISizeService, SizeService>();
         services.AddScoped<IFileService, FileService>();
-        services.AddScoped<IImgurService, ImgurService>();
+        services.AddScoped<IImageStorageService, ImgurService>();
         services.AddHttpClient();
 
         // Add other services as needed

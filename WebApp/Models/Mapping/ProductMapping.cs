@@ -1,7 +1,4 @@
-﻿using WebApp.Models.DTOs;
-using WebApp.Models.Entities;
-
-namespace WebApp.Models.Mapping
+﻿namespace WebApp.Models.Mapping
 {
     public static class ProductMapping
     {
@@ -24,7 +21,9 @@ namespace WebApp.Models.Mapping
                 CategoryId = entity.CategoryId,
                 CategoryName = entity.Category?.Name,
                 BrandId = entity.BrandId,
-                BrandName = entity.Brand?.Name
+                BrandName = entity.Brand?.Name,
+                Inventories = entity.Inventories?.Select(p => p.ToDto()).ToList() ?? [],
+                TotalQuantity = entity.Inventories?.Sum(p => p.Quantity) ?? 0,
             };
         }
         public static Product ToEntity(this ProductDto dto)
@@ -44,7 +43,7 @@ namespace WebApp.Models.Mapping
                 CreatedAt = dto.CreatedAt,
                 UpdatedAt = dto.UpdatedAt,
                 CategoryId = dto.CategoryId,
-                BrandId = dto.BrandId
+                BrandId = dto.BrandId,
             };
         }
     }

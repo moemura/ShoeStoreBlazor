@@ -1,10 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using WebApp.Data.Interfaces;
 
-namespace WebApp.Data
+namespace WebApp.Data.Services
 {
     public class MemoryCacheService : ICacheService
     {

@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using WebApp.Models;
 using WebApp.Models.Mapping;
 using WebApp.Models.DTOs;
+using WebApp.Data.Interfaces;
 
-namespace WebApp.Data
+namespace WebApp.Data.Services
 {
     public class BrandService : IBrandService
     {

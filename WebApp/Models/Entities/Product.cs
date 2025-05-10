@@ -25,4 +25,6 @@ public class Product : BaseEntity<string>
     public Category? Category { get; set; }
     [ForeignKey("BrandId")]
     public Brand? Brand { get; set; }
+
+    public virtual ICollection<Inventory>? Inventories { get; set; }
 }

@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using WebApp.Data.Interfaces;
 
 namespace WebApp.Endpoints
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BrandsController(IBrandService service) : ControllerBase
+    public class CategoriesController(ICategoryService service) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -26,27 +26,6 @@ namespace WebApp.Endpoints
         {
             var data = await service.GetById(id);
             return data == null ? NotFound() : Ok(data);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Create(BrandDto dto)
-        {
-            var data = await service.Create(dto);
-            return Ok(data);
-        }
-
-        [HttpPut]
-        public async Task<IActionResult> Update(BrandDto dto)
-        {
-            await service.Update(dto);
-            return Ok();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
-        {
-            await service.Delete(id);
-            return Ok();
         }
     }
 } 

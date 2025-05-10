@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Components.Forms;
 using Newtonsoft.Json;
 using System.Text.Json;
+using WebApp.Data.Interfaces;
 
-namespace WebApp.Data
+namespace WebApp.Data.Services
 {
-    public class ImgurService : IImgurService
+    public class ImgurService : IImageStorageService
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;

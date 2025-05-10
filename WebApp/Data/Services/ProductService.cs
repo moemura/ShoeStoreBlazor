@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using WebApp.Models;
-using WebApp.Models.Mapping;
-using WebApp.Models.DTOs;
 
-namespace WebApp.Data
+namespace WebApp.Data.Services
 {
     public class ProductService : IProductService
     {
@@ -26,6 +23,7 @@ namespace WebApp.Data
                 var data = await dbContext.Products
                     .Include(p => p.Category)
                     .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
                     .ToListAsync();
                 return data.Select(p => p.ToDto());
             });
@@ -40,6 +38,7 @@ namespace WebApp.Data
                 var product = await dbContext.Products
                     .Include(p => p.Category)
                     .Include(p => p.Brand)
+                    .Include(p=>p.Inventories)
                     .SingleOrDefaultAsync(p => p.Id == Id);
                 return product.ToDto();
             });
@@ -134,6 +133,7 @@ namespace WebApp.Data
             var query = dbContext.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
+                .Include(p => p.Inventories)
                 .AsQueryable();
 
             if (filter.ContainsKey("name") && !string.IsNullOrEmpty(filter["name"]))
@@ -174,6 +174,7 @@ namespace WebApp.Data
                 var query = dbContext.Products
                     .Include(p => p.Category)
                     .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
                     .AsQueryable();
 
                 if (filter.ContainsKey("name") && !string.IsNullOrEmpty(filter["name"]))
@@ -232,6 +233,7 @@ namespace WebApp.Data
                 var products = await dbContext.Products
                     .Include(p => p.Category)
                     .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
                     .Skip((pageIndex - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
@@ -249,6 +251,43 @@ namespace WebApp.Data
                     HasPrevious = pageIndex > 1
                 };
             });
+        }
+
+        public async Task Stock(string productId, IEnumerable<InventoryDto> inventories)
+        {
+            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            
+            // Get product with existing inventories using EagerLoading
+            var product = await dbContext.Products
+                .Include(p => p.Inventories)
+                .FirstOrDefaultAsync(p => p.Id == productId)
+                ?? throw new Exception("Product not found!");
+
+            // Get existing inventories for the product
+            var existingInventories = product.Inventories.ToDictionary(i => i.SizeId);
+
+            foreach (var inventoryDto in inventories)
+            {
+                if (existingInventories.TryGetValue(inventoryDto.SizeId, out var existingInventory))
+                {
+                    // Update existing inventory
+                    existingInventory.Quantity = inventoryDto.Quantity;
+                }
+                else
+                {
+                    // Create new inventory
+                    var newInventory = new Inventory
+                    {
+                        ProductId = productId,
+                        SizeId = inventoryDto.SizeId,
+                        Quantity = inventoryDto.Quantity
+                    };
+                    dbContext.Inventories.Add(newInventory);
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+            await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
         }
     }
 }

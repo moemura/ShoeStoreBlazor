@@ -15,7 +15,7 @@
                 <Icon Type="@IconType.Outline.Calendar" />
                 <span>Đơn hàng</span>
             </MenuItem>
-            <MenuItem Key="3" RouterLink="/management/product">
+            <MenuItem Key="3" RouterLink="/products">
                 <Icon Type="@IconType.Outline.Appstore" />
                 <span>Sản phẩm</span>
             </MenuItem>
@@ -23,11 +23,11 @@
                         <Icon Type="@IconType.Outline.User" />
                         <span>Người dùng</span>
             </MenuItem>
-            <MenuItem Key="5" RouterLink="/management/category">
+            <MenuItem Key="5" RouterLink="/categories">
                 <Icon Type="@IconType.Outline.FieldTime" />
                 <span>Danh mục</span>
             </MenuItem>
-            <MenuItem Key="6" RouterLink="/management/brand">
+            <MenuItem Key="6" RouterLink="/brands">
                 <Icon Type="@IconType.Outline.FieldTime" />
                 <span>Thương hiệu</span>
             </MenuItem>
@@ -35,32 +35,22 @@
                 <Icon Type="@IconType.Outline.Barcode" />
                 <span>Mã giảm giá</span>
             </MenuItem>
-            @{
-                RenderFragment sub1Title =
-                    @<span>
-                        <Icon Type="@IconType.Outline.Control" />
-                        <span>Thiết lập</span>
-                    </span>;
-            }
-            <SubMenu Key="sub1" TitleTemplate=sub1Title>
-                <MenuItem Key="8">
-                    <Icon Type="@IconType.Outline.Sliders" />
-                    <span>Quảng cáo</span>
-                </MenuItem>
-                    <MenuItem Key="9">
-                    <Icon Type="@IconType.Outline.Contacts" />
-                    <span>Thông tin liên hệ</span>
-                </MenuItem>
-                <MenuItem Key="10">
-                    <Icon Type="@IconType.Outline.Safety" />
-                    <span>Phân quyền</span>
-                </MenuItem>
-                <MenuItem Key="11" RouterLink="swagger">
+            <MenuItem Key="8">
+                <Icon Type="@IconType.Outline.Sliders" />
+                <span>Quảng cáo</span>
+            </MenuItem>
+                <MenuItem Key="9">
+                <Icon Type="@IconType.Outline.Contacts" />
+                <span>Thông tin liên hệ</span>
+            </MenuItem>
+            <MenuItem Key="10">
+                <Icon Type="@IconType.Outline.Safety" />
+                <span>Phân quyền</span>
+            </MenuItem>
+                <MenuItem Key="12" RouterLink="swagger">
                     <Icon Type="@IconType.Outline.Safety" />
                     <span>Swagger</span>
                 </MenuItem>
-            </SubMenu>
-
         </Menu>
     </Sider>
         <Layout>

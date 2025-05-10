@@ -12,4 +12,6 @@ public class ShoeStoreDbContext : IdentityDbContext<AppUser>
     public virtual DbSet<Product> Products { get; set; }
     public virtual DbSet<Category> Categories { get; set; }
     public virtual DbSet<Brand> Brands { get; set; }
+    public virtual DbSet<Size> Sizes { get; set; }
+    public virtual DbSet<Inventory> Inventories { get; set; }
 }

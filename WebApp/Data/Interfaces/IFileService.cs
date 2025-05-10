@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace WebApp.Data
+namespace WebApp.Data.Interfaces
 {
     public interface IFileService
     {
