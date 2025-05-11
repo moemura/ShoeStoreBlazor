@@ -39,7 +39,7 @@ namespace WebApp.Services.Products
                 var product = await dbContext.Products
                     .Include(p => p.Category)
                     .Include(p => p.Brand)
-                    .Include(p=>p.Inventories)
+                    .Include(p => p.Inventories)
                     .SingleOrDefaultAsync(p => p.Id == Id);
                 return product.ToDto();
             });
@@ -49,9 +49,9 @@ namespace WebApp.Services.Products
         {
             if (dto == null)
                 throw new Exception("Data must not null!");
-            
+
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            
+
             // Validate Category and Brand if provided
             if (!string.IsNullOrEmpty(dto.CategoryId))
             {
@@ -169,7 +169,7 @@ namespace WebApp.Services.Products
         public async Task<PaginationData<ProductDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
         {
             var cacheKey = $"{CACHE_PREFIX}Filter_{string.Join("_", filter.Select(f => $"{f.Key}_{f.Value}"))}_Page_{pageIndex}_Size_{pageSize}";
-            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            var result = await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
                 using var dbContext = await _dbContextFactory.CreateDbContextAsync();
                 var query = dbContext.Products
@@ -222,6 +222,7 @@ namespace WebApp.Services.Products
                     HasPrevious = pageIndex > 1
                 };
             });
+            return result;
         }
 
         public async Task<PaginationData<ProductDto>> GetPagination(int pageIndex, int pageSize)
@@ -257,7 +258,7 @@ namespace WebApp.Services.Products
         public async Task Stock(string productId, IEnumerable<InventoryDto> inventories)
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            
+
             // Get product with existing inventories using EagerLoading
             var product = await dbContext.Products
                 .Include(p => p.Inventories)

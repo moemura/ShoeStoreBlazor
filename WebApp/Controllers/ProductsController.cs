@@ -33,27 +33,27 @@ namespace WebApp.Endpoints
                     [FromQuery] int pageIndex = 1,
                     [FromQuery] int pageSize = 12,
                     [FromQuery] string? search = null,
-                    [FromQuery] int? categoryId = null,
-                    [FromQuery] int? brandId = null,
-                    [FromQuery] decimal? minPrice = null,
-                    [FromQuery] decimal? maxPrice = null)
+                    [FromQuery] string? categoryId = null,
+                    [FromQuery] string? brandId = null,
+                    [FromQuery] string? minPrice = null,
+                    [FromQuery] string? maxPrice = null)
         {
             var filter = new Dictionary<string, string>();
 
             if (!string.IsNullOrEmpty(search))
                 filter["search"] = search;
 
-            if (categoryId.HasValue)
-                filter["categoryId"] = categoryId.Value.ToString();
+            if (categoryId!=null)
+                filter["categoryId"] = categoryId;
 
-            if (brandId.HasValue)
-                filter["brandId"] = brandId.Value.ToString();
+            if (brandId!=null)
+                filter["brandId"] = brandId;
 
-            if (minPrice.HasValue)
-                filter["minPrice"] = minPrice.Value.ToString();
+            if (minPrice!=null)
+                filter["minPrice"] = minPrice;
 
-            if (maxPrice.HasValue)
-                filter["maxPrice"] = maxPrice.Value.ToString();
+            if (maxPrice!=null)
+                filter["maxPrice"] = maxPrice;
 
             var data = await service.FilterAndPagin(pageIndex, pageSize, filter);
             return Ok(data);
