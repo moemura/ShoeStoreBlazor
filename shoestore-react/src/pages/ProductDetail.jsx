@@ -10,6 +10,10 @@ const ProductDetail = () => {
   const [error, setError] = useState(null);
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState('');
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -45,6 +49,32 @@ const ProductDetail = () => {
     }
     // TODO: Implement add to cart functionality
     console.log('Add to cart:', { productId: id, size: selectedSize, quantity });
+  };
+
+  const handleNextImage = () => {
+    if (product.images && product.images.length > 0) {
+      setSlideDirection('right');
+      setCurrentImageIndex((prev) => (prev + 1) % (product.images.length + 1));
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (product.images && product.images.length > 0) {
+      setSlideDirection('left');
+      setCurrentImageIndex((prev) => (prev - 1 + product.images.length + 1) % (product.images.length + 1));
+    }
+  };
+
+  const handleThumbnailClick = (index) => {
+    setSlideDirection(index > currentImageIndex ? 'right' : 'left');
+    setCurrentImageIndex(index);
+  };
+
+  const getCurrentImage = () => {
+    if (currentImageIndex === 0) {
+      return product.mainImage;
+    }
+    return product.images[currentImageIndex - 1];
   };
 
   if (loading) {
@@ -89,26 +119,128 @@ const ProductDetail = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Product Images */}
         <div className="space-y-4">
-          <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-            <img
-              src={product.mainImage}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          {product.images && product.images.length > 0 && (
-            <div className="grid grid-cols-4 gap-4">
-              {product.images.map((image, index) => (
-                <div key={index} className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                  <img
-                    src={image}
-                    alt={`${product.name} - ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+          <div className="flex gap-4">
+            {/* Thumbnails Column */}
+            {product.images && product.images.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    const newIndex = currentImageIndex === 0 
+                      ? product.images.length 
+                      : currentImageIndex - 1;
+                    handleThumbnailClick(newIndex);
+                  }}
+                  className="absolute left-1/2 -translate-x-1/2 -top-2 bg-white/80 hover:bg-white p-1 rounded-full shadow-md transition-all z-10"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+                <div className="flex flex-col gap-2 h-[400px] overflow-y-auto scrollbar-hide">
+                  <div 
+                    className={`w-20 aspect-square overflow-hidden rounded-lg bg-gray-100 cursor-pointer border-2 ${
+                      currentImageIndex === 0 ? 'border-black' : 'border-transparent'
+                    }`}
+                    onClick={() => handleThumbnailClick(0)}
+                  >
+                    <img
+                      src={product.mainImage}
+                      alt={`${product.name} - main`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {product.images.map((image, index) => (
+                    <div 
+                      key={index} 
+                      className={`w-20 aspect-square overflow-hidden rounded-lg bg-gray-100 cursor-pointer border-2 ${
+                        currentImageIndex === index + 1 ? 'border-black' : 'border-transparent'
+                      }`}
+                      onClick={() => handleThumbnailClick(index + 1)}
+                    >
+                      <img
+                        src={image}
+                        alt={`${product.name} - ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <button
+                  onClick={() => {
+                    const newIndex = currentImageIndex === product.images.length 
+                      ? 0 
+                      : currentImageIndex + 1;
+                    handleThumbnailClick(newIndex);
+                  }}
+                  className="absolute left-1/2 -translate-x-1/2 -bottom-2 bg-white/80 hover:bg-white p-1 rounded-full shadow-md transition-all z-10"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Main Image */}
+            <div className="flex-1 relative">
+              <div 
+                className="aspect-square overflow-hidden rounded-lg bg-gray-100 relative"
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.clientY - rect.top) / rect.height) * 100;
+                  setMousePosition({ x, y });
+                }}
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <div className="relative w-full h-full">
+                  <img
+                    key={currentImageIndex}
+                    src={getCurrentImage()}
+                    alt={product.name}
+                    className={`w-full h-full object-cover transition-all duration-500 ease-in-out ${
+                      slideDirection === 'right' ? 'slide-in-right' : 'slide-in-left'
+                    }`}
+                  />
+                  {isHovering && (
+                    <div 
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        backgroundImage: `url(${getCurrentImage()})`,
+                        backgroundPosition: `${mousePosition.x}% ${mousePosition.y}%`,
+                        backgroundSize: '300%',
+                        backgroundRepeat: 'no-repeat',
+                        clipPath: 'circle(200px at var(--x) var(--y))',
+                        '--x': `${mousePosition.x}%`,
+                        '--y': `${mousePosition.y}%`,
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+              {product.images && product.images.length > 0 && (
+                <>
+                  <button
+                    onClick={handlePrevImage}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-all duration-300 ease-in-out hover:scale-110"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-all duration-300 ease-in-out hover:scale-110"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Product Info */}
@@ -204,6 +336,38 @@ const ProductDetail = () => {
           </button>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideInLeft {
+          from {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        .slide-in-right {
+          animation: slideInRight 0.5s ease-in-out;
+        }
+
+        .slide-in-left {
+          animation: slideInLeft 0.5s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };

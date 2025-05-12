@@ -61,7 +61,7 @@
        OnChange="@OnTableChange"
        Loading="_loading">
     <PropertyColumn TItem="CategoryDto" TProp="string" Width="80px" >
-        <Avatar Src="@(fileService.GetFileUrl(context.Image, "brands"))" />
+        <Avatar Src="@(fileService.GetFileUrl(context.Image, "categories"))" />
     </PropertyColumn>
     <PropertyColumn Property="c=>c.Name" Title="Tên danh mục" />
     <PropertyColumn Property="c=>c.Description" Title="Mô tả" />

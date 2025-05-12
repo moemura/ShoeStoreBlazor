@@ -4,6 +4,10 @@ import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { brandService } from '../services/brandService';
 import { debounce } from 'lodash';
+import MenuSidebar from '../components/MenuSidebar';
+import FilterSection from '../components/FilterSection';
+import ProductCard from '../components/ProductCard';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,6 +16,8 @@ const Products = () => {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const [hoveredProduct, setHoveredProduct] = useState(null);
   const [pagination, setPagination] = useState({
     pageIndex: 1,
     pageSize: 12,
@@ -38,6 +44,70 @@ const Products = () => {
     pageSize: 12,
     search: searchParams.get('search') || ''
   });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const getWavePosition = (index) => {
+    const row = Math.floor(index / 4);
+    const col = index % 4;
+    
+    // Tính toán độ trễ dựa trên vị trí trong grid
+    const delay = (row * 0.15) + (col * 0.05);
+    
+    // Tính toán độ lệch ngang dựa trên cột
+    const xOffset = (col - 1.5) * 50;
+    
+    return { delay, xOffset };
+  };
+
+  const itemVariants = {
+    hidden: (index) => {
+      const { xOffset } = getWavePosition(index);
+      return {
+        opacity: 0,
+        y: 100,
+        x: xOffset,
+        scale: 0.8,
+        filter: "blur(8px)"
+      };
+    },
+    visible: (index) => {
+      const { delay } = getWavePosition(index);
+      return {
+        opacity: 1,
+        y: 0,
+        x: 0,
+        scale: 1,
+        filter: "blur(0px)",
+        transition: {
+          type: "spring",
+          stiffness: 100,
+          damping: 15,
+          mass: 1,
+          delay
+        }
+      };
+    },
+    hover: {
+      y: -10,
+      scale: 1.02,
+      filter: "brightness(1.05)",
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 10
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,7 +140,6 @@ const Products = () => {
 
         if (filters.categoryId) filterParams.categoryId = filters.categoryId;
         if (filters.brandId) filterParams.brandId = filters.brandId;
-        // Chuyển đổi giá trị giá thành số và thêm vào params
         if (filters.minPrice !== '') {
           filterParams.minPrice = Number(filters.minPrice);
         }
@@ -80,7 +149,7 @@ const Products = () => {
         if (filters.search) filterParams.search = filters.search;
         if (filters.sortBy) filterParams.sortBy = filters.sortBy;
 
-        console.log('Filter params:', filterParams); // Debug log
+        console.log('Sending request with params:', filterParams); // Debug log
 
         const response = await productService.getAll(filterParams.pageIndex, filterParams.pageSize, filterParams);
 
@@ -126,7 +195,7 @@ const Products = () => {
         delete newFilters.maxPrice;
       }
       setFilters(newFilters);
-      
+
       // Update URL params
       const params = new URLSearchParams();
       Object.entries(newFilters).forEach(([key, value]) => {
@@ -161,16 +230,16 @@ const Products = () => {
   const handleFilterChange = (key, value) => {
     // Reset page when changing filters
     const newFilters = { ...filters, [key]: value, pageIndex: 1 };
-    
+
     // Remove empty filters
     Object.keys(newFilters).forEach(k => {
       if (!newFilters[k] && k !== 'pageIndex' && k !== 'pageSize') {
         delete newFilters[k];
       }
     });
-    
+
     setFilters(newFilters);
-    
+
     // Update URL params
     const params = new URLSearchParams();
     Object.entries(newFilters).forEach(([key, value]) => {
@@ -185,11 +254,29 @@ const Products = () => {
       pageSize: 12,
       sortBy: 'newest'
     });
+    setPriceInputs({
+      minPrice: '',
+      maxPrice: ''
+    });
     setSearchParams({});
   };
 
   const handlePageChange = (newPage) => {
-    handleFilterChange('pageIndex', newPage);
+    // Cập nhật filters với pageIndex mới
+    const newFilters = {
+      ...filters,
+      pageIndex: newPage
+    };
+    setFilters(newFilters);
+
+    // Cập nhật URL params
+    const params = new URLSearchParams();
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value !== '' && value !== null && value !== undefined) {
+        params.set(key, value);
+      }
+    });
+    setSearchParams(params);
   };
 
   const formatPrice = (price) => {
@@ -197,6 +284,116 @@ const Products = () => {
       style: 'currency',
       currency: 'VND'
     }).format(price);
+  };
+
+  const renderPagination = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, pagination.pageIndex - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.pageCount, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-8">
+        {/* First Page Button */}
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={pagination.pageIndex === 1}
+          className="px-3 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Trang đầu"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <polyline points="11 17 6 12 11 7"/>
+            <polyline points="17 17 12 12 17 7"/>
+          </svg>
+        </button>
+
+        {/* Previous Page Button */}
+        <button
+          onClick={() => handlePageChange(pagination.pageIndex - 1)}
+          disabled={!pagination.hasPrevious}
+          className="px-3 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Trang trước"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        {/* First Page */}
+        {startPage > 1 && (
+          <>
+            <button
+              onClick={() => handlePageChange(1)}
+              className="px-3 py-2 border rounded-md hover:bg-gray-50"
+            >
+              1
+            </button>
+            {startPage > 2 && (
+              <span className="px-2">...</span>
+            )}
+          </>
+        )}
+
+        {/* Page Numbers */}
+        {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map((page) => (
+          <button
+            key={page}
+            onClick={() => handlePageChange(page)}
+            className={`px-3 py-2 border rounded-md ${
+              pagination.pageIndex === page
+                ? 'bg-black text-white'
+                : 'hover:bg-gray-50'
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        {/* Last Page */}
+        {endPage < pagination.pageCount && (
+          <>
+            {endPage < pagination.pageCount - 1 && (
+              <span className="px-2">...</span>
+            )}
+            <button
+              onClick={() => handlePageChange(pagination.pageCount)}
+              className="px-3 py-2 border rounded-md hover:bg-gray-50"
+            >
+              {pagination.pageCount}
+            </button>
+          </>
+        )}
+
+        {/* Next Page Button */}
+        <button
+          onClick={() => handlePageChange(pagination.pageIndex + 1)}
+          disabled={!pagination.hasNext}
+          className="px-3 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Trang sau"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+
+        {/* Last Page Button */}
+        <button
+          onClick={() => handlePageChange(pagination.pageCount)}
+          disabled={pagination.pageIndex === pagination.pageCount}
+          className="px-3 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Trang cuối"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <polyline points="13 17 18 12 13 7"/>
+            <polyline points="6 17 11 12 6 7"/>
+          </svg>
+        </button>
+      </div>
+    );
   };
 
   if (error) {
@@ -210,268 +407,179 @@ const Products = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar Filters */}
-        <div className="w-full md:w-72 space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Bộ lọc</h2>
-            <button
-              onClick={clearFilters}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              Xóa bộ lọc
-            </button>
-          </div>
+    <div className="container mx-auto py-8">
+      {/* Main Content */}
+      <div className="relative flex">
+        {/* Menu Sidebar */}
+        <MenuSidebar
+          isOpen={isFilterOpen}
+          onClose={setIsFilterOpen}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          categories={categories}
+          brands={brands}
+        />
 
-          {/* Categories Filter */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h3 className="font-semibold text-lg mb-3">Danh mục</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {categories.map((category) => (
-                <label key={category.id} className="flex items-center space-x-2 hover:bg-gray-50 p-2 rounded-md cursor-pointer">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={filters.categoryId === category.id}
-                    onChange={() => handleFilterChange('categoryId', category.id)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="flex-1">{category.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+        {/* Products Section */}
+        <div className={`flex-1 min-w-0 transition-all duration-260 ease-in-out ${isFilterOpen ? 'md:ml-[260px]' : 'md:ml-[70px]'}`}>
+          <div className="px-4">
+            {/* Header with Active Filters */}
+            <div className="mb-6">
 
-          {/* Brands Filter */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h3 className="font-semibold text-lg mb-3">Thương hiệu</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {brands.map((brand) => (
-                <label key={brand.id} className="flex items-center space-x-2 hover:bg-gray-50 p-2 rounded-md cursor-pointer">
-                  <input
-                    type="radio"
-                    name="brand"
-                    checked={filters.brandId === brand.id}
-                    onChange={() => handleFilterChange('brandId', brand.id)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="flex-1">{brand.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
 
-          {/* Price Range Filter */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h3 className="font-semibold text-lg mb-3">Khoảng giá</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Từ</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={priceInputs.minPrice}
-                    onChange={(e) => handlePriceChange('min', e.target.value)}
-                    placeholder="0"
-                    className="w-full px-3 py-2 border rounded-md pl-8"
-                  />
-                  <span className="absolute left-3 top-2 text-gray-500">₫</span>
+              {/* Filter Section */}
+              <FilterSection
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                priceInputs={priceInputs}
+                onPriceChange={handlePriceChange}
+                onClearFilters={clearFilters}
+              />
+
+              {/* Active Filters */}
+              <div className="flex items-center justify-between mb-4 mt-4">
+                <div className="flex items-center gap-2">
+                  {(filters.categoryId || filters.brandId || filters.minPrice || filters.maxPrice || filters.sortBy !== 'newest') && (
+                    <div className="flex flex-wrap gap-2">
+                      {filters.categoryId && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
+                          Danh mục: {categories.find(c => c.id === filters.categoryId)?.name}
+                          <button
+                            onClick={() => handleFilterChange('categoryId', '')}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
+                      {filters.brandId && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
+                          Thương hiệu: {brands.find(b => b.id === filters.brandId)?.name}
+                          <button
+                            onClick={() => handleFilterChange('brandId', '')}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
+                      {filters.minPrice && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
+                          Giá từ: {formatPrice(filters.minPrice)}
+                          <button
+                            onClick={() => handleFilterChange('minPrice', '')}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
+                      {filters.maxPrice && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
+                          Giá đến: {formatPrice(filters.maxPrice)}
+                          <button
+                            onClick={() => handleFilterChange('maxPrice', '')}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
+                      {filters.sortBy !== 'newest' && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
+                          Sắp xếp: {
+                            {
+                              'price_asc': 'Giá tăng dần',
+                              'price_desc': 'Giá giảm dần',
+                              'name_asc': 'Tên A-Z',
+                              'name_desc': 'Tên Z-A'
+                            }[filters.sortBy]
+                          }
+                          <button
+                            onClick={() => handleFilterChange('sortBy', 'newest')}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
+                <span className="text-gray-500">
+                  {pagination.itemCount} sản phẩm
+                </span>
               </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Đến</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={priceInputs.maxPrice}
-                    onChange={(e) => handlePriceChange('max', e.target.value)}
-                    placeholder="1000000"
-                    className="w-full px-3 py-2 border rounded-md pl-8"
-                  />
-                  <span className="absolute left-3 top-2 text-gray-500">₫</span>
-                </div>
+            </div>
+
+            {/* Products Grid */}
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="bg-gray-200 h-64 rounded-lg mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
+            ) : (
+              <>
+                {products.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500 text-lg">Không tìm thấy sản phẩm nào</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Top Pagination */}
+                    {pagination.pageCount > 1 && (
+                      <div className="mb-4">
+                        {renderPagination()}
+                      </div>
+                    )}
 
-          {/* Sort Filter */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h3 className="font-semibold text-lg mb-3">Sắp xếp</h3>
-            <select
-              value={filters.sortBy}
-              onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md bg-white"
-            >
-              <option value="newest">Mới nhất</option>
-              <option value="price_asc">Giá tăng dần</option>
-              <option value="price_desc">Giá giảm dần</option>
-              <option value="name_asc">Tên A-Z</option>
-              <option value="name_desc">Tên Z-A</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Products Grid */}
-        <div className="flex-1">
-          {/* Active Filters */}
-          {(filters.categoryId || filters.brandId || filters.minPrice || filters.maxPrice || filters.sortBy !== 'newest') && (
-            <div className="mb-6 flex flex-wrap gap-2">
-              {filters.categoryId && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
-                  Danh mục: {categories.find(c => c.id === filters.categoryId)?.name}
-                  <button
-                    onClick={() => handleFilterChange('categoryId', '')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.brandId && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
-                  Thương hiệu: {brands.find(b => b.id === filters.brandId)?.name}
-                  <button
-                    onClick={() => handleFilterChange('brandId', '')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.minPrice && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
-                  Giá từ: {formatPrice(filters.minPrice)}
-                  <button
-                    onClick={() => handleFilterChange('minPrice', '')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.maxPrice && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
-                  Giá đến: {formatPrice(filters.maxPrice)}
-                  <button
-                    onClick={() => handleFilterChange('maxPrice', '')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.sortBy !== 'newest' && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100">
-                  Sắp xếp: {
-                    {
-                      'price_asc': 'Giá tăng dần',
-                      'price_desc': 'Giá giảm dần',
-                      'name_asc': 'Tên A-Z',
-                      'name_desc': 'Tên Z-A'
-                    }[filters.sortBy]
-                  }
-                  <button
-                    onClick={() => handleFilterChange('sortBy', 'newest')}
-                    className="ml-2 text-gray-500 hover:text-gray-700"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, index) => (
-                <div key={index} className="animate-pulse">
-                  <div className="bg-gray-200 h-64 rounded-lg mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <>
-              {products.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">Không tìm thấy sản phẩm nào</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {products.map((product) => (
-                    <Link
-                      key={product.id}
-                      to={`/products/${product.id}`}
-                      className="group block"
+                    <motion.div 
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="visible"
+                      key={filters.pageIndex}
                     >
-                      <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 mb-4">
-                        <img
-                          src={product.mainImage || product.images?.[0] || 'https://via.placeholder.com/400'}
-                          alt={product.name}
-                          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                        />
-                        {product.salePrice && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md">
-                            {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
-                          </div>
-                        )}
-                      </div>
-                      <h3 className="font-medium text-gray-900 mb-1">{product.name}</h3>
-                      <p className="text-sm text-gray-500 mb-2">{product.brandName}</p>
-                      <div className="flex items-center gap-2">
-                        {product.salePrice ? (
-                          <>
-                            <p className="font-medium text-red-500">{formatPrice(product.salePrice)}</p>
-                            <p className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</p>
-                          </>
-                        ) : (
-                          <p className="font-medium text-gray-900">{formatPrice(product.price)}</p>
-                        )}
-                      </div>
-                      <div className="mt-2 text-sm text-gray-500">
-                        Còn lại: {product.totalQuantity} sản phẩm
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
+                      <AnimatePresence mode="wait">
+                        {products.map((product, index) => (
+                          <motion.div
+                            key={product.id}
+                            custom={index}
+                            variants={itemVariants}
+                            whileHover="hover"
+                            whileTap={{ scale: 0.98 }}
+                            layout
+                            initial="hidden"
+                            animate="visible"
+                            exit="hidden"
+                          >
+                            <ProductCard
+                              product={product}
+                              isHovered={hoveredProduct === product.id}
+                              onMouseEnter={() => setHoveredProduct(product.id)}
+                              onMouseLeave={() => setHoveredProduct(null)}
+                            />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </motion.div>
 
-              {/* Pagination */}
-              {pagination.pageCount > 1 && (
-                <div className="flex justify-center mt-8 space-x-2">
-                  <button
-                    onClick={() => handlePageChange(pagination.pageIndex - 1)}
-                    disabled={!pagination.hasPrevious}
-                    className="px-4 py-2 border rounded-md disabled:opacity-50"
-                  >
-                    Trước
-                  </button>
-                  {[...Array(pagination.pageCount)].map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handlePageChange(index + 1)}
-                      className={`px-4 py-2 border rounded-md ${
-                        pagination.pageIndex === index + 1
-                          ? 'bg-black text-white'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => handlePageChange(pagination.pageIndex + 1)}
-                    disabled={!pagination.hasNext}
-                    className="px-4 py-2 border rounded-md disabled:opacity-50"
-                  >
-                    Sau
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+                    {/* Bottom Pagination */}
+                    {pagination.pageCount > 1 && (
+                      <div className="mt-8">
+                        {renderPagination()}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
