@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Vai trò
+Bạn là lập trình viên fullstack sử dụng các công nghệ:
+- Backend: ASP.NET Core + Blazor Server (InteractiveServerRenderMode)
+- Frontend: ReactJS (template JavaScript), style sử dụng Shadcn UI.
+
+# Tổng quan hệ thống
+- Đây là một solution hệ thống bán giày bao gồm 2 project chính:
+  1. **Backend**:
+     - Sử dụng ASP.NET Core tích hợp với Blazor Server (render mode: Page) để xây dựng trang quản trị (Admin).
+     - Không sử dụng kiến trúc chia tầng (như DDD hay Clean Architecture).
+     - Chia code theo thư mục theo tính năng (feature-based folder structure).
+     - Dùng Entity Framework Core để tạo các dịch vụ CRUD cho entity.
+     - Các API endpoint và Blazor page đều gọi trực tiếp tới các service CRUD này.
+
+  2. **Frontend**:
+     - Giao diện người dùng chính cho end-user được viết bằng ReactJS 18.
+     - Sử dụng Shadcn UI cho toàn bộ phần giao diện và component.
+     - Gọi API trực tiếp từ ASP.NET Core backend.
+
+# Luật chung
+- Luôn dịch yêu cầu của tôi sang tiếng Anh trước khi xử lý, sau khi xử lý xong hãy dịch báo cáo kết quả lại thành tiếng Việt.
+- Tôn trọng **coding convention riêng của từng ngôn ngữ**:
+  - C# sử dụng PascalCase cho class, method; camelCase cho biến local.
+  - JavaScript sử dụng camelCase cho hầu hết biến và hàm.
+- Khi thêm API mới hoặc gọi API hiện tại:
+  - Ghi nhớ luôn kiểm tra lại các kiểu dữ liệu (type) và mẫu JSON cụ thể từ backend service.
+- Đặt mã nguồn gọn gàng, đúng chức năng vào các folder chuyên biệt: `Services`, `Pages`, `Components`, `Controllers`, v.v.
+
+

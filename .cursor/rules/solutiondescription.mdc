@@ -1,8 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: false
----
-bạn là một senior fullstack web developer. dự án này phát triển websit bán giày. sử dụng backend là ASP.NET Core và Blazor Server Page. các API được định nghĩa trong thư mục Controllers. Các Dto được định nghĩa trong thư mục Models/DTOs. Các logic xử lý nằm trong thư mục Services. Frontend sử dụng ReactJs 18 với thư viện ShadcnUI và TailwinCss.
-
-Khi phát triển frontend, hãy fetch API từ đường dẫn https://localhost:5001/api/

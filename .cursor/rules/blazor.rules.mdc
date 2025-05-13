@@ -1,0 +1,12 @@
+---
+description: 
+globs: *.razor
+alwaysApply: false
+---
+# Thư viện AntDesign Blazor 1.4.0
+# Các biến private luôn có ký tự '_' phía trước.
+# Không sử dụng 2 table trở lên trong 1 file razor vì lý do nhập nhằng biến context. nếu cần hãy tách table thứ 2 thành file razor riếng.
+
+# Khi code có tương tác hành vi người dùng luôn kèm theo hiệu ứng loading như spinner, thông báo kết quả sau khi xử lý.
+# Các page razor đều inject Service class thay vì gọi API
+# Có cơ chế bảo mật xác thực bằng Cookie dành riêng cho Admin

@@ -1,0 +1,170 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using WebApp.Models.Entities
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient HttpClient
+@inject ILogger<MainLayout> Logger
+
+<AuthorizeView>
+    <Authorized>
+        <Layout>
+            <Header Class="header">
+                <div class="header-left">
+                    <img class="logo" src="images/logo.png" />
+                </div>
+                <div class="header-right">
+                    <Dropdown>
+                        <ChildContent>
+                            <Button Type="@ButtonType.Link">
+                                <Icon Type="@IconType.Outline.User" />
+                                <span>@context.User.Identity?.Name</span>
+                            </Button>
+                        </ChildContent>
+                        <Overlay>
+                            <Menu>
+                                <MenuItem Key="1" OnClick="HandleLogout">
+                                    <Icon Type="@IconType.Outline.Logout" />
+                                    <span>Đăng xuất</span>
+                                </MenuItem>
+                            </Menu>
+                        </Overlay>
+                    </Dropdown>
+
+                </div>
+            </Header>
+            <Layout>
+                <Sider Collapsible Theme="SiderTheme.Light" Width="250">
+                    <Menu Theme="MenuTheme.Light" DefaultSelectedKeys=@(new[]{"1"}) Mode="MenuMode.Inline">
+                        <MenuItem Key="1" RouterLink="/">
+                            <Icon Type="@IconType.Outline.BarChart" />
+                            <span>Tổng quan</span>
+                        </MenuItem>
+                        <MenuItem Key="2" RouterMatch="NavLinkMatch.All">
+                            <Icon Type="@IconType.Outline.Calendar" />
+                            <span>Đơn hàng</span>
+                        </MenuItem>
+                        <MenuItem Key="3" RouterLink="/products">
+                            <Icon Type="@IconType.Outline.Appstore" />
+                            <span>Sản phẩm</span>
+                        </MenuItem>
+                        <MenuItem Key="4" RouterMatch="NavLinkMatch.All">
+                            <Icon Type="@IconType.Outline.User" />
+                            <span>Người dùng</span>
+                        </MenuItem>
+                        <MenuItem Key="5" RouterLink="/categories">
+                            <Icon Type="@IconType.Outline.FieldTime" />
+                            <span>Danh mục</span>
+                        </MenuItem>
+                        <MenuItem Key="6" RouterLink="/brands">
+                            <Icon Type="@IconType.Outline.FieldTime" />
+                            <span>Thương hiệu</span>
+                        </MenuItem>
+                        <MenuItem Key="7">
+                            <Icon Type="@IconType.Outline.Barcode" />
+                            <span>Mã giảm giá</span>
+                        </MenuItem>
+                        <MenuItem Key="8">
+                            <Icon Type="@IconType.Outline.Sliders" />
+                            <span>Quảng cáo</span>
+                        </MenuItem>
+                        <MenuItem Key="9">
+                            <Icon Type="@IconType.Outline.Contacts" />
+                            <span>Thông tin liên hệ</span>
+                        </MenuItem>
+                        <MenuItem Key="10">
+                            <Icon Type="@IconType.Outline.Safety" />
+                            <span>Phân quyền</span>
+                        </MenuItem>
+                        <MenuItem Key="12" RouterLink="swagger">
+                            <Icon Type="@IconType.Outline.Safety" />
+                            <span>Swagger</span>
+                        </MenuItem>
+                    </Menu>
+                </Sider>
+                <Layout>
+                    <Content Class="site-layout-background" Style="padding: 16px; margin: 0; min-height: 100vh;">
+                        @Body
+                    </Content>
+                </Layout>
+            </Layout>
+        </Layout>
+    </Authorized>
+</AuthorizeView>
+<style>
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 24px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .logo {
+        width: 120px;
+        height: 48px;
+        margin: 4px 0;
+    }
+
+    .site-layout-background {
+        background: #fff;
+    }
+
+    .login-message {
+        padding: 24px;
+        text-align: center;
+        color: #666;
+    }
+</style>
+<script>
+    window.redirectTo = function(url) {
+    window.location.assign(url);
+    };
+</script>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == false)
+        {
+            NavigateToLogin();
+        }
+    }
+
+    private void NavigateToLogin()
+    {
+        JS.InvokeVoidAsync("window.location.assign", "/admin/login");
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            JS.InvokeVoidAsync("window.location.assign", "/admin/logout");
+            // Điều hướng về trang đăng nhập
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during logout");
+        }
+    }
+}
+
+@* <div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">��</span>
+</div> *@

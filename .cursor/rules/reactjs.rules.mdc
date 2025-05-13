@@ -1,0 +1,8 @@
+---
+description: 
+globs: *.js,*.jsx
+alwaysApply: false
+---
+# Đây không phải là dự án TypeScript
+
+# Khi viết hoặc sửa code frontend (ReactJS), luôn cần tìm hiểu **cấu trúc payload** của request/response tại backend, không được đoán hoặc giả định cấu trúc, nếu quên hoặc thiếu thông tin hãy yêu cầu tôi cung cấp để tiếp tục xử lý.

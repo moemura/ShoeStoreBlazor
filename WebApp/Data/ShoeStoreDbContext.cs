@@ -14,4 +14,16 @@ public class ShoeStoreDbContext : IdentityDbContext<AppUser>
     public virtual DbSet<Brand> Brands { get; set; }
     public virtual DbSet<Size> Sizes { get; set; }
     public virtual DbSet<Inventory> Inventories { get; set; }
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.Entity<RefreshToken>()
+            .HasOne(rt => rt.User)
+            .WithMany()
+            .HasForeignKey(rt => rt.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
 }

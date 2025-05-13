@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cấu trúc Solution
+## Backend - ASP.NET Core (WebApp)
+## Fronend - ReactJs Javascript template (shoestore-react)
+
+# Cấu trúc Backend
+WebApp
+├── wwwroot/ # Static files (CSS, JS, images, etc.)
+├── Controllers/ # API Controllers
+│
+├── Data/
+│ └── DbContext/ # DbContext & EF Core configs
+│
+├── Models/
+│ ├── Entities/ # Domain entities
+│ │ ├── AppUser.cs
+│ │ ├── BaseEntity.cs
+│ │ ├── Brand.cs
+│ │ ├── Category.cs
+│ │ ├── Inventory.cs
+│ │ ├── Product.cs
+│ │ └── Size.cs
+│ │
+│ ├── DTOs/ # Data Transfer Objects
+│ │ ├── BrandDto.cs
+│ │ ├── CategoryDto.cs
+│ │ ├── InventoryDto.cs
+│ │ └── ProductDto.cs
+│ │
+│ ├── Mapping/ # AutoMapper profiles or mapping logic
+│ │ ├── BrandMapping.cs
+│ │ ├── CategoryMapping.cs
+│ │ ├── InventoryMapping.cs
+│ │ └── ProductMapping.cs
+│ │
+│ └── PaginationData.cs # Shared pagination data model
+│
+├── Pages/ # Blazor Server pages
+│ ├── Base/
+│ │ ├── App.razor
+│ │ ├── Error.razor
+│ │ ├── Home.razor
+│ │ └── Routes.razor
+│ │
+│ ├── Brands/
+│ │ └── BrandPage.razor
+│ │
+│ ├── Categories/
+│ │ └── CategoryPage.razor
+│ │
+│ ├── Layout/
+│ │ ├── MainLayout.razor
+│ │ └── MainLayout.razor.css
+│ │
+│ ├── Products/
+│ │ └── ProductPage.razor
+│ │
+│ └── _Imports.razor
+│
+├── Services/ # Business logic services
+│ ├── Analysis/ # (Empty for now)
+│ ├── Auth/ # (Empty for now)
+│ ├── Brands/
+│ │ ├── BrandService.cs
+│ │ └── IBrandService.cs
+│ │
+│ ├── Carts/ # (Empty for now)
+│ ├── Catches/
+│ │ ├── ICatcheService.cs
+│ │ └── MemoryCatcheService.cs
+│ │
+│ ├── Categories/
+│ │ ├── CategoryService.cs
+│ │ └── ICategoryService.cs
+│ │
+│ ├── Files/
+│ │ ├── FileService.cs
+│ │ ├── IFileService.cs
+│ │ ├── IImageStorageService.cs
+│ │ └── ImgurService.cs
+│ │
+│ ├── Orders/ # (Empty for now)
+│ ├── Payments/ # (Empty for now)
+│ ├── Products/
+│ │ ├── ProductService.cs
+│ │ └── IProductService.cs # Includes inventory logic
+│ │
+│ └── Sizes/
+│ ├── SizeService.cs
+│ └── ISizeService.cs
+│ └── User/ # (Empty for now)
+│
+├── Program.cs # App entry point
+└── appsettings.json # Configuration settings
+
+# Cấu trúc Frontend
+## node_modules
+## public
+## src
+### assets
+### components
+### pages
+### routes
+### services - api services
+### App.css
+### App.jsx
+### index.css
+
+
+### main.jsx

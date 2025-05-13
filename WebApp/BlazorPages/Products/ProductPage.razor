@@ -7,6 +7,8 @@
 @using WebApp.Services.Files
 @using WebApp.Services.Products
 @using WebApp.Services.Sizes
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "RequireAdminRole")]
 @inject IProductService productService
 @inject ICategoryService categoryService
 @inject IBrandService brandService

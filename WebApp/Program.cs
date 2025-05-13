@@ -1,6 +1,11 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using WebApp.Pages.Base;
+using WebApp.BlazorPages.Base;
+using WebApp.Services.Auth;
 using WebApp.Services.Brands;
 using WebApp.Services.Catches;
 using WebApp.Services.Categories;
@@ -12,13 +17,99 @@ namespace WebApp;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
+        builder.Services.AddRazorPages();
+
+        // Configure JWT settings
+        builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+        var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+        
+        if (string.IsNullOrEmpty(jwtSettings?.SecretKey))
+        {
+            throw new InvalidOperationException("JWT SecretKey is not configured. Please set a valid secret key in appsettings.json");
+        }
+
+        if (jwtSettings.SecretKey.Length < 32)
+        {
+            throw new InvalidOperationException("JWT SecretKey must be at least 32 characters long");
+        }
+
+        // Add Identity
+        builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
+        {
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = false;
+            options.Password.RequireUppercase = false;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredLength = 6;
+            options.User.RequireUniqueEmail = true;
+
+            // Lockout settings
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
+        })
+        .AddEntityFrameworkStores<ShoeStoreDbContext>()
+        .AddDefaultTokenProviders();
+
+        // Configure Cookie Authentication
+        //builder.Services.ConfigureApplicationCookie(options =>
+        //{
+        //    options.LoginPath = "/admin/login";
+        //    options.LogoutPath = "/admin/logout";
+        //    options.AccessDeniedPath = "/admin/access-denied";
+        //    options.SlidingExpiration = true;
+        //    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        //    options.Cookie.Name = "ShoeStore.Auth";
+        //    options.Cookie.HttpOnly = true;
+        //    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        //    options.Cookie.SameSite = SameSiteMode.Lax;
+        //});
+
+        // Add Authentication with both Cookie and JWT
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        })
+        .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+        {
+            options.LoginPath = "/admin/login";
+            options.LogoutPath = "/admin/logout";
+            options.AccessDeniedPath = "/access-denied";
+            options.SlidingExpiration = true;
+            options.ExpireTimeSpan = TimeSpan.FromDays(7);
+            options.Cookie.Name = "ShoeStore.Auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+        })
+        .AddJwtBearer("Bearer", options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtSettings!.Issuer,
+                ValidAudience = jwtSettings.Audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
+            };
+        });
+
+        // Add Authorization
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireAdminRole", policy =>
+                policy.RequireRole("Admin"));
+        });
 
         // Add services before other configurations
         AddServices(builder.Services);
@@ -69,7 +160,29 @@ public class Program
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<ICacheService, MemoryCacheService>();
 
+        // Add Email Service
+        builder.Services.AddScoped<IEmailSender, EmailSender>();
+
+        // Add DbSeeder
+        builder.Services.AddScoped<DbSeeder>();
+
         var app = builder.Build();
+
+        // Seed the database
+        using (var scope = app.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            try
+            {
+                var seeder = services.GetRequiredService<DbSeeder>();
+                await seeder.SeedAsync();
+            }
+            catch (Exception ex)
+            {
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                logger.LogError(ex, "An error occurred while seeding the database");
+            }
+        }
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
@@ -87,6 +200,9 @@ public class Program
         app.UseSwaggerUI();
         app.UseHttpsRedirection();
 
+        app.UseAuthentication();
+        app.UseAuthorization();
+
         app.UseAntiforgery();
         app.MapControllers();
         app.UseCors(o =>
@@ -96,13 +212,12 @@ public class Program
         app.MapStaticAssets();
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
-
-        app.Run();
+        app.MapRazorPages();
+        await app.RunAsync();
     }
 
     public static void AddServices(IServiceCollection services)
     {
-
         services.AddAntDesign();
 
         // Register services with proper scoping
@@ -112,6 +227,7 @@ public class Program
         services.AddScoped<ISizeService, SizeService>();
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IImageStorageService, ImgurService>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddHttpClient();
 
         // Add other services as needed
