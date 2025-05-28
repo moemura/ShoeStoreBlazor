@@ -1,13 +1,15 @@
 ---
 description: 
-globs: *.cs
-alwaysApply: false
+globs: 
+alwaysApply: true
 ---
-# Khi triển khai 1 module mới, hãy bắt đầu tạo entity class trong folder Models/Entities, tiếp đến khai báo DbSet và cấu hình chỉ mục vào file ShoeStoreDbContext.cs trong folder Data, sau đó tạo Dto class trong folder Models/DTOs, sau đó tạo mapping extension class trong folder Models/Mapping. Nếu entity có cấu trúc đơn giản thì không cần Dto.
-# Khi tạo một service mới hãy tham khảo mẫu code theo file ProductService.cs
-# Khi tạo service mới hãy đăng ký DI trong file Program.cs
-# Trong tất cả các service, mỗi phương thức đều có 1 instance dbContext mới, được tạo từ IDbContextFactory
-# Tối ưu truy vấn và xử lý đối với những bảng thường có nhiều dữ liệu như khách hàng, đơn hàng...
+# Backend Rules (Optimized)
 
-# Sau khi hoàn thành xong Service thì xây dựng API controller, lưu ý không tạo các API dành riêng cho admin.
-# Có cơ chế bảo mật JWT dành cho API
+- For new modules: create entity in Models/Entities, add DbSet/config in Data, create DTO (if needed), add mapping in Models/Mapping.
+- Use ProductService.cs as a template for new services.
+- Register all services in Program.cs (DI).
+- Each service method: use a new dbContext instance from IDbContextFactory.
+- Optimize queries for large/critical tables.
+- After service: build API controller (no admin-only APIs).
+- Use JWT for API security.
+

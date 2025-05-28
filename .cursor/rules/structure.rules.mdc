@@ -3,112 +3,34 @@ description:
 globs: 
 alwaysApply: true
 ---
-# Cấu trúc Solution
-## Backend - ASP.NET Core (WebApp)
-## Fronend - ReactJs Javascript template (shoestore-react)
+# Project Structure Rules (Optimized)
 
-# Cấu trúc Backend
-WebApp
-├── wwwroot/ # Static files (CSS, JS, images, etc.)
-├── Controllers/ # API Controllers
-│
-├── Data/
-│ └── DbContext/ # DbContext & EF Core configs
-│
-├── Models/
-│ ├── Entities/ # Domain entities
-│ │ ├── AppUser.cs
-│ │ ├── BaseEntity.cs
-│ │ ├── Brand.cs
-│ │ ├── Category.cs
-│ │ ├── Inventory.cs
-│ │ ├── Product.cs
-│ │ └── Size.cs
-│ │
-│ ├── DTOs/ # Data Transfer Objects
-│ │ ├── BrandDto.cs
-│ │ ├── CategoryDto.cs
-│ │ ├── InventoryDto.cs
-│ │ └── ProductDto.cs
-│ │
-│ ├── Mapping/ # AutoMapper profiles or mapping logic
-│ │ ├── BrandMapping.cs
-│ │ ├── CategoryMapping.cs
-│ │ ├── InventoryMapping.cs
-│ │ └── ProductMapping.cs
-│ │
-│ └── PaginationData.cs # Shared pagination data model
-│
-├── Pages/ # Blazor Server pages
-│ ├── Base/
-│ │ ├── App.razor
-│ │ ├── Error.razor
-│ │ ├── Home.razor
-│ │ └── Routes.razor
-│ │
-│ ├── Brands/
-│ │ └── BrandPage.razor
-│ │
-│ ├── Categories/
-│ │ └── CategoryPage.razor
-│ │
-│ ├── Layout/
-│ │ ├── MainLayout.razor
-│ │ └── MainLayout.razor.css
-│ │
-│ ├── Products/
-│ │ └── ProductPage.razor
-│ │
-│ └── _Imports.razor
-│
-├── Services/ # Business logic services
-│ ├── Analysis/ # (Empty for now)
-│ ├── Auth/ # (Empty for now)
-│ ├── Brands/
-│ │ ├── BrandService.cs
-│ │ └── IBrandService.cs
-│ │
-│ ├── Carts/ # (Empty for now)
-│ ├── Catches/
-│ │ ├── ICatcheService.cs
-│ │ └── MemoryCatcheService.cs
-│ │
-│ ├── Categories/
-│ │ ├── CategoryService.cs
-│ │ └── ICategoryService.cs
-│ │
-│ ├── Files/
-│ │ ├── FileService.cs
-│ │ ├── IFileService.cs
-│ │ ├── IImageStorageService.cs
-│ │ └── ImgurService.cs
-│ │
-│ ├── Orders/ # (Empty for now)
-│ ├── Payments/ # (Empty for now)
-│ ├── Products/
-│ │ ├── ProductService.cs
-│ │ └── IProductService.cs # Includes inventory logic
-│ │
-│ └── Sizes/
-│ ├── SizeService.cs
-│ └── ISizeService.cs
-│ └── User/ # (Empty for now)
-│
-├── Program.cs # App entry point
-└── appsettings.json # Configuration settings
+## Backend (WebApp)
+- wwwroot/: Static files (CSS, JS, images)
+- Controllers/: API endpoints
+- Data/: DbContext, EF Core configs
+- Models/
+  - Entities/: Domain models
+  - DTOs/: Data Transfer Objects
+  - Mapping/: AutoMapper profiles
+- BlazorPages/: Admin UI (feature folders)
+- Services/: Business logic (feature folders)
+- Program.cs: App entry
+- appsettings.json: Config
 
-# Cấu trúc Frontend
-## node_modules
-## public
-## src
-### assets
-### components
-### pages
-### routes
-### services - api services
-### App.css
-### App.jsx
-### index.css
+## Frontend (shoestore-react)
+- public/: Static assets
+- src/
+  - assets/
+  - components/
+  - pages/
+  - routes/
+  - services/: API logic
+  - App.jsx, main.jsx, index.css: Entrypoints
 
+## Best Practices
+- Feature-based folder structure for scalability.
+- Keep code, assets, and configs organized by responsibility.
+- No TypeScript in React project.
+- Always sync API contract between frontend and backend.
 
-### main.jsx

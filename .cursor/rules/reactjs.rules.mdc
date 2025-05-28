@@ -1,8 +1,10 @@
 ---
 description: 
-globs: *.js,*.jsx
+globs: 
 alwaysApply: false
 ---
-# Đây không phải là dự án TypeScript
+# Reactjs Rules (Optimized)
 
-# Khi viết hoặc sửa code frontend (ReactJS), luôn cần tìm hiểu **cấu trúc payload** của request/response tại backend, không được đoán hoặc giả định cấu trúc, nếu quên hoặc thiếu thông tin hãy yêu cầu tôi cung cấp để tiếp tục xử lý.
+- Use ShadcnUI
+
+- Use JWT authentication for security.

@@ -58,20 +58,6 @@ public class Program
         .AddEntityFrameworkStores<ShoeStoreDbContext>()
         .AddDefaultTokenProviders();
 
-        // Configure Cookie Authentication
-        //builder.Services.ConfigureApplicationCookie(options =>
-        //{
-        //    options.LoginPath = "/admin/login";
-        //    options.LogoutPath = "/admin/logout";
-        //    options.AccessDeniedPath = "/admin/access-denied";
-        //    options.SlidingExpiration = true;
-        //    options.ExpireTimeSpan = TimeSpan.FromDays(7);
-        //    options.Cookie.Name = "ShoeStore.Auth";
-        //    options.Cookie.HttpOnly = true;
-        //    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        //    options.Cookie.SameSite = SameSiteMode.Lax;
-        //});
-
         // Add Authentication with both Cookie and JWT
         builder.Services.AddAuthentication(options =>
         {
