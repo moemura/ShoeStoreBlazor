@@ -351,10 +351,6 @@ public class AuthService : IAuthService
         var newToken = await GenerateJwtTokenAsync(user);
         var newRefreshToken = await GenerateRefreshTokenAsync(user);
 
-        // Remove old refresh token
-        context.RefreshTokens.Remove(token);
-        await context.SaveChangesAsync();
-
         return new AuthResponseDto
         {
             Success = true,
