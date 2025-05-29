@@ -313,19 +313,15 @@ namespace WebApp.Services.Products
             await _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
         }
 
-        public async Task<InventoryDto> CheckInventoryQuantity(int inventoryId, int quantity)
+        public async Task<Inventory> CheckInventory(int inventoryId, int quantity)
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
             var inventory = await dbContext.Inventories.Include(i => i.Product).FirstOrDefaultAsync(i => i.Id == inventoryId);
             if (inventory == null || inventory.Quantity < quantity)
                 return null;
-            return new InventoryDto
-            {
-                Id = inventory.Id,
-                ProductId = inventory.ProductId,
-                SizeId = inventory.SizeId,
-                Quantity = inventory.Quantity
-            };
+            return inventory;
         }
+
+        public Task RemoveProductCache() => _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
     }
 }

@@ -13,6 +13,6 @@ namespace WebApp.Services.Products
         Task<PaginationData<ProductDto>> GetPagination(int pageIndex, int pageSize);
         Task Update(ProductDto dto);
         Task Stock(string productId, IEnumerable<InventoryDto> inventories);
-        Task<InventoryDto> CheckInventoryQuantity(int inventoryId, int quantity);
+        Task<Inventory> CheckInventory(int inventoryId, int quantity);
     }
 }

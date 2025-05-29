@@ -45,8 +45,8 @@ namespace WebApp.Controllers
             if (userId == null && guestId == null)
                 return BadRequest();
             var key = userId ?? guestId;
-            await _cartService.AddOrUpdateItem(key, request);
-            return Ok();
+            var result = await _cartService.AddOrUpdateItem(key, request);
+            return Ok(result);
         }
         [HttpDelete("item/{inventoryId}")]
         [AllowAnonymous]

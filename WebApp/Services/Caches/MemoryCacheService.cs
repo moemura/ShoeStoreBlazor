@@ -21,6 +21,8 @@ namespace WebApp.Services.Catches
         {
             if (_memoryCache.TryGetValue(key, out T cachedValue))
             {
+                if (!_cacheKeys.ContainsKey(key))
+                    _cacheKeys[key] = DateTime.UtcNow;
                 return cachedValue;
             }
 

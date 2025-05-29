@@ -7,7 +7,7 @@ alwaysApply: true
 
 - For new modules: create entity in Models/Entities, add DbSet/config in Data, create DTO (if needed), add mapping in Models/Mapping.
 - Use ProductService.cs as a template for new services.
-- Register all services in Program.cs (DI).
+- Register all services in ServiceContainer.cs (DI).
 - Each service method: use a new dbContext instance from IDbContextFactory.
 - Optimize queries for large/critical tables.
 - After service: build API controller (no admin-only APIs).

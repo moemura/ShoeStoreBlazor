@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using WebApp.Models.Entities;
 
 namespace WebApp.Data;
 
@@ -15,6 +14,8 @@ public class ShoeStoreDbContext : IdentityDbContext<AppUser>
     public virtual DbSet<Size> Sizes { get; set; }
     public virtual DbSet<Inventory> Inventories { get; set; }
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
+    public virtual DbSet<Order> Orders { get; set; }
+    public virtual DbSet<OrderItem> OrderItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

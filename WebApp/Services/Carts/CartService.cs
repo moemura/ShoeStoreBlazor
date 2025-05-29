@@ -22,24 +22,28 @@ public class CartService : ICartService
         return await _cacheService.GetOrSetAsync(key, async () => new CartDto { CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }, TimeSpan.FromDays(CartExpireDays));
     }
 
-    public async Task AddOrUpdateItem(string userIdOrGuestId, CartItemAddOrUpdateRequest request)
+    public async Task<CartItemDto> AddOrUpdateItem(string userIdOrGuestId, CartItemAddOrUpdateRequest request)
     {
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         var cart = await GetCart(userIdOrGuestId);
         // Kiểm tra tồn kho
-        var inventory = await _productService.CheckInventoryQuantity(request.InventoryId, request.Quantity);
+        var inventory = await _productService.CheckInventory(request.InventoryId, request.Quantity);
         if (inventory == null)
             throw new Exception("Not enough stock");
         var item = cart.Items.FirstOrDefault(i => i.InventoryId == request.InventoryId);
         if (item == null)
         {
-            cart.Items.Add(new CartItemDto
+            // Lấy thông tin sản phẩm
+            var product = inventory.Product;
+            item = new CartItemDto
             {
                 InventoryId = request.InventoryId,
                 Quantity = request.Quantity,
-                ProductName = "", // Optionally fetch product name if needed
-                Size = inventory.SizeId
-            });
+                ProductName = product?.Name ?? string.Empty,
+                Size = inventory.SizeId,
+                // Có thể bổ sung thêm ProductId, MainImage nếu cần
+            };
+            cart.Items.Add(item);
         }
         else
         {
@@ -47,6 +51,7 @@ public class CartService : ICartService
         }
         cart.UpdatedAt = DateTime.UtcNow;
         await _cacheService.GetOrSetAsync(key, async () => cart, TimeSpan.FromDays(CartExpireDays));
+        return item;
     }
 
     public async Task RemoveItem(string userIdOrGuestId, int inventoryId)

@@ -4,7 +4,8 @@
 - [x] Xây dựng module giỏ hàng
 
 ## Progress
-- [] Xây dựng module checkout và đơn hàng, tích hợp cổng thanh toán MoMo
+- [] Tích hợp cổng thanh toán MoMo
+- [] Xây dựng module checkout và đơn hàng
 
 ## Next Steps
 - [] Xây dựng module mã giảm giá
