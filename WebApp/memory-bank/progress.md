@@ -1,9 +1,9 @@
 ## Milestones
 - [x] Thiết kế kiến trúc ban đầu
 - [x] Xây dựng module sản phẩm, tồn kho, danh mục, thương hiệu
+- [x] Xây dựng module giỏ hàng
 
 ## Progress
-- [] Xây dựng module giỏ hàng
 - [] Xây dựng module checkout và đơn hàng, tích hợp cổng thanh toán MoMo
 
 ## Next Steps

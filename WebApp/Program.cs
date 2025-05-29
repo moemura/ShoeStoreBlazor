@@ -6,12 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using WebApp.BlazorPages.Base;
 using WebApp.Services.Auth;
-using WebApp.Services.Brands;
 using WebApp.Services.Catches;
-using WebApp.Services.Categories;
-using WebApp.Services.Files;
-using WebApp.Services.Products;
-using WebApp.Services.Sizes;
+using WebApp.Services.Carts;
 
 namespace WebApp;
 
@@ -98,7 +94,8 @@ public class Program
         });
 
         // Add services before other configurations
-        AddServices(builder.Services);
+        builder.Services.AddAppServices();
+        builder.Services.AddExternalServices();
 
         builder.Services.AddSwaggerGen(option =>
         {
@@ -142,15 +139,9 @@ public class Program
             options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
         }, ServiceLifetime.Scoped);
 
-        // Add Memory Cache
-        builder.Services.AddMemoryCache();
-        builder.Services.AddScoped<ICacheService, MemoryCacheService>();
-
-        // Add Email Service
-        builder.Services.AddScoped<IEmailSender, EmailSender>();
-
-        // Add DbSeeder
         builder.Services.AddScoped<DbSeeder>();
+
+
 
         var app = builder.Build();
 
@@ -200,22 +191,5 @@ public class Program
             .AddInteractiveServerRenderMode();
         app.MapRazorPages();
         await app.RunAsync();
-    }
-
-    public static void AddServices(IServiceCollection services)
-    {
-        services.AddAntDesign();
-
-        // Register services with proper scoping
-        services.AddScoped<IProductService, ProductService>();
-        services.AddScoped<ICategoryService, CategoryService>();
-        services.AddScoped<IBrandService, BrandService>();
-        services.AddScoped<ISizeService, SizeService>();
-        services.AddScoped<IFileService, FileService>();
-        services.AddScoped<IImageStorageService, ImgurService>();
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddHttpClient();
-
-        // Add other services as needed
     }
 }
