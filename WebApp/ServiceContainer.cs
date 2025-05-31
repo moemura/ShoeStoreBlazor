@@ -26,6 +26,7 @@ public static class ServiceContainer
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IImageStorageService, ImgurService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAccountService, AccountService>();
         services.AddHttpClient();
     }
     public static void AddExternalServices(this IServiceCollection services)

@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Sử dụng xUnit, EF Core InMemoryDb để tạo DB giả.
+Khi bắt đầu viết Unit Test cho một Service, hãy làm theo các bước
+1. Đọc các class entity, dto, mapping tương ứng với Service trong `WebApp/Models`. (ví dụ: Product.cs, ProductDto.cs, ProductMapping.cs)
+2. Đọc file service class trong `WebApp/Service` (ví dụ: ProductService.cs)
+3. Tạo file Test trong `WebApp.Test/DataTests` , cấu hình các phụ thuộc trong constructor tương tự như `ProductServiceTest.cs`.
+
+4. Viết Test
