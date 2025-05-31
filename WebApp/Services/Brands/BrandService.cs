@@ -158,11 +158,14 @@ namespace WebApp.Services.Brands
                         UpdatedAt = b.UpdatedAt
                     })
                     .ToListAsync();
-
+                var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
                 return new PaginationData<BrandDto>
                 {
                     Data = items,
-                    ItemCount = totalItems
+                    ItemCount = totalItems,
+                    PageCount = pageCount,
+                    HasNext = page < pageCount,
+                    HasPrevious = page > 1
                 };
             });
         }

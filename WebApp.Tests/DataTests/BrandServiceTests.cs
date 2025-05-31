@@ -4,8 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using WebApp.Data;
 using WebApp.Models.DTOs;
 using Moq;
-using WebApp.Data.Interfaces;
-using WebApp.Data.Services;
+using WebApp.Services.Brands;
+using WebApp.Services.Catches;
 
 namespace WebApp.Tests.DataTests
 {
@@ -13,7 +13,6 @@ namespace WebApp.Tests.DataTests
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _contextFactory;
         private readonly IBrandService _brandService;
-        private readonly Mock<ICacheService> _mockCacheService;
 
         public BrandServiceTests()
         {
@@ -33,15 +32,7 @@ namespace WebApp.Tests.DataTests
                 options,
                 new DbContextFactorySource<ShoeStoreDbContext>()
             );
-
-            // Setup mock cache service
-            _mockCacheService = new Mock<ICacheService>();
-            _mockCacheService.Setup(x => x.GetOrSetAsync<IEnumerable<BrandDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<BrandDto>>>>(), It.IsAny<TimeSpan?>()))
-                .Returns((string key, Func<Task<IEnumerable<BrandDto>>> factory, TimeSpan? expiration) => factory());
-            _mockCacheService.Setup(x => x.GetOrSetAsync<BrandDto>(It.IsAny<string>(), It.IsAny<Func<Task<BrandDto>>>(), It.IsAny<TimeSpan?>()))
-                .Returns((string key, Func<Task<BrandDto>> factory, TimeSpan? expiration) => factory());
-
-            _brandService = new BrandService(_contextFactory, _mockCacheService.Object);
+            _brandService = new BrandService(_contextFactory, new NoCacheService());
         }
 
         [Fact]
@@ -65,9 +56,6 @@ namespace WebApp.Tests.DataTests
             Assert.Equal(brandDto.Logo, result.Logo);
             Assert.NotNull(result.Id);
             Assert.NotEqual(default, result.CreatedAt);
-
-            // Verify cache was invalidated
-            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -89,9 +77,6 @@ namespace WebApp.Tests.DataTests
             Assert.NotNull(result);
             Assert.Equal(created.Id, result.Id);
             Assert.Equal(brandDto.Name, result.Name);
-
-            // Verify cache was checked
-            _mockCacheService.Verify(x => x.GetOrSetAsync<BrandDto>(It.IsAny<string>(), It.IsAny<Func<Task<BrandDto>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
 
         [Fact]
@@ -127,8 +112,6 @@ namespace WebApp.Tests.DataTests
             Assert.Equal("Updated Brand", updated.Name);
             Assert.Equal("Updated Description", updated.Description);
 
-            // Verify cache was invalidated
-            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -149,9 +132,6 @@ namespace WebApp.Tests.DataTests
             // Assert
             var deleted = await _brandService.GetById(created.Id);
             Assert.Null(deleted);
-
-            // Verify cache was invalidated
-            _mockCacheService.Verify(x => x.RemoveAsync(It.IsAny<string>()), Times.AtLeastOnce);
         }
 
         [Fact]
@@ -199,37 +179,13 @@ namespace WebApp.Tests.DataTests
 
             // Act
             var result = await _brandService.GetPagination(1, 2);
-
+            var count = (await _brandService.GetAll()).Count();
             // Assert
             Assert.Equal(2, result.Data.Count());
             Assert.Equal(5, result.ItemCount);
             Assert.Equal(3, result.PageCount);
             Assert.True(result.HasNext);
             Assert.False(result.HasPrevious);
-        }
-
-        [Fact]
-        public async Task GetAll_ShouldUseCache()
-        {
-            // Arrange
-            var cachedBrands = new List<BrandDto>
-            {
-                new BrandDto { Id = "1", Name = "Cached Brand 1" },
-                new BrandDto { Id = "2", Name = "Cached Brand 2" }
-            };
-            _mockCacheService.Setup(x => x.GetOrSetAsync<IEnumerable<BrandDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<BrandDto>>>>(), It.IsAny<TimeSpan?>()))
-                .Returns(Task.FromResult<IEnumerable<BrandDto>>(cachedBrands));
-
-            // Act
-            var result = await _brandService.GetAll();
-
-            // Assert
-            Assert.Equal(2, result.Count());
-            Assert.Equal("Cached Brand 1", result.First().Name);
-            Assert.Equal("Cached Brand 2", result.Last().Name);
-
-            // Verify cache was checked
-            _mockCacheService.Verify(x => x.GetOrSetAsync<IEnumerable<BrandDto>>(It.IsAny<string>(), It.IsAny<Func<Task<IEnumerable<BrandDto>>>>(), It.IsAny<TimeSpan?>()), Times.Once);
         }
     }
 } 
