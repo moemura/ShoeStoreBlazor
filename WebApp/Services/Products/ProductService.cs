@@ -168,7 +168,7 @@ namespace WebApp.Services.Products
             return products.Select(p => p.ToDto());
         }
 
-        public async Task<PaginationData<ProductDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
+        public async Task<PaginatedList<ProductDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
         {
             var orderedFilter = filter.OrderBy(kv => kv.Key);
             var filterKey = string.Join("_", orderedFilter.Select(f => $"{f.Key}_{f.Value}"));
@@ -220,20 +220,16 @@ namespace WebApp.Services.Products
 
                 var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
 
-                return new PaginationData<ProductDto>
-                {
-                    Data = orderedProducts.Select(p => p.ToDto()),
-                    PageIndex = pageIndex,
-                    PageSize = pageSize,
-                    ItemCount = totalItems,
-                    PageCount = pageCount,
-                    HasNext = pageIndex < pageCount,
-                    HasPrevious = pageIndex > 1
-                };
+                return new PaginatedList<ProductDto>(
+                    orderedProducts.Select(p => p.ToDto()),
+                    pageIndex,
+                    pageSize,
+                    totalItems
+                );
             });
         }
 
-        public async Task<PaginationData<ProductDto>> GetPagination(int pageIndex, int pageSize)
+        public async Task<PaginatedList<ProductDto>> GetPagination(int pageIndex, int pageSize)
         {
             var cacheKey = $"{CACHE_PREFIX}Page_{pageIndex}_Size_{pageSize}";
             return await _cacheService.GetOrSetAsync(cacheKey, async () =>
@@ -260,19 +256,12 @@ namespace WebApp.Services.Products
                     .OrderBy(p => p.CreatedAt)
                     .ToListAsync();
 
-                // Bước 4: Tính tổng số trang
-                var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-                return new PaginationData<ProductDto>
-                {
-                    Data = products.Select(p => p.ToDto()),
-                    PageIndex = pageIndex,
-                    PageSize = pageSize,
-                    ItemCount = totalItems,
-                    PageCount = pageCount,
-                    HasNext = pageIndex < pageCount,
-                    HasPrevious = pageIndex > 1
-                };
+                return new PaginatedList<ProductDto>(
+                    products.Select(p => p.ToDto()),
+                    pageIndex,
+                    pageSize,
+                    totalItems
+                );
             });
         }
 

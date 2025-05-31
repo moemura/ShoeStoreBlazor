@@ -123,7 +123,7 @@ public class OrderService : IOrderService
         if (_productService is ProductService ps)
             await ps.RemoveProductCache();
     }
-    public async Task<PaginationData<OrderDto>> FilterAndPaging(int pageIndex, int pageSize, Dictionary<string, string> filter)
+    public async Task<PaginatedList<OrderDto>> FilterAndPaging(int pageIndex, int pageSize, Dictionary<string, string> filter)
     {
         var query = _dbContext.Orders
             .Include(o => o.Items)
@@ -144,7 +144,7 @@ public class OrderService : IOrderService
             .Take(pageSize)
             .ToListAsync();
         var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-        return new PaginationData<OrderDto>
+        return new PaginatedList<OrderDto>
         {
             Data = orders.Select(o => o.ToDto()),
             PageIndex = pageIndex,

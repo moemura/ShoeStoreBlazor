@@ -1,15 +1,15 @@
 ---
 description: 
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # Backend Rules (Optimized)
 
-- For new modules: create entity in Models/Entities, add DbSet/config in Data, create DTO (if needed), add mapping in Models/Mapping.
-- Use ProductService.cs as a template for new services.
+- For new modules: create entity in `Models/Entities`, add DbSet/config in `Data/ShoeStoreDbContext.cs`, create DTO (if needed), add mapping in `Models/Mapping`.
+- Use `Services/ProductService.cs` as a template for new services.
 - Register all services in ServiceContainer.cs (DI).
 - Each service method: use a new dbContext instance from IDbContextFactory.
 - Optimize queries for large/critical tables.
-- After service: build API controller (no admin-only APIs).
+- After service: build API controller (no admin-only APIs such as Create/Update/Delete Product).
 - Use JWT for API security.
 

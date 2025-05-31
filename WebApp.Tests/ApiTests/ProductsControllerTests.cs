@@ -60,7 +60,7 @@ namespace WebApp.Tests.ApiTests
         public async Task GetPagination_ShouldReturnOkWithPaginationData()
         {
             // Arrange
-            var expectedData = new PaginationData<ProductDto>
+            var expectedData = new PaginatedList<ProductDto>
             {
                 Data = new List<ProductDto>
                 {
@@ -83,7 +83,7 @@ namespace WebApp.Tests.ApiTests
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnValue = Assert.IsType<PaginationData<ProductDto>>(okResult.Value);
+            var returnValue = Assert.IsType<PaginatedList<ProductDto>>(okResult.Value);
             Assert.Equal(2, returnValue.Data.Count());
             Assert.Equal(1, returnValue.PageIndex);
             Assert.Equal(2, returnValue.PageSize);

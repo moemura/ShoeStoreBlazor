@@ -16,6 +16,7 @@ alwaysApply: true
 - BlazorPages/: Admin UI (feature folders)
 - Services/: Business logic (feature folders)
 - Program.cs: App entry
+- ServiceContainer.cs: Registry Service
 - appsettings.json: Config
 
 ## Frontend (shoestore-react)

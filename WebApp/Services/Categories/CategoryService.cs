@@ -89,7 +89,7 @@ namespace WebApp.Services.Categories
             return categories.Select(c => c.ToDto());
         }
 
-        public async Task<PaginationData<CategoryDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
+        public async Task<PaginatedList<CategoryDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
             var query = dbContext.Categories.AsQueryable();
@@ -105,21 +105,15 @@ namespace WebApp.Services.Categories
                 .Take(pageSize)
                 .ToListAsync();
 
-            var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-            return new PaginationData<CategoryDto>
-            {
-                Data = categories.Select(c => c.ToDto()),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                ItemCount = totalItems,
-                PageCount = pageCount,
-                HasNext = pageIndex < pageCount,
-                HasPrevious = pageIndex > 1
-            };
+            return new PaginatedList<CategoryDto>(
+                categories.Select(c => c.ToDto()),
+                pageIndex,
+                pageSize,
+                totalItems
+            );
         }
 
-        public async Task<PaginationData<CategoryDto>> GetPagination(int pageIndex, int pageSize)
+        public async Task<PaginatedList<CategoryDto>> GetPagination(int pageIndex, int pageSize)
         {
             var cacheKey = $"{CACHE_PREFIX}Page_{pageIndex}_Size_{pageSize}";
             return await _cacheService.GetOrSetAsync(cacheKey, async () =>
@@ -131,18 +125,12 @@ namespace WebApp.Services.Categories
                     .Take(pageSize)
                     .ToListAsync();
 
-                var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-                return new PaginationData<CategoryDto>
-                {
-                    Data = categories.Select(c => c.ToDto()),
-                    PageIndex = pageIndex,
-                    PageSize = pageSize,
-                    ItemCount = totalItems,
-                    PageCount = pageCount,
-                    HasNext = pageIndex < pageCount,
-                    HasPrevious = pageIndex > 1
-                };
+                return new PaginatedList<CategoryDto>(
+                    categories.Select(c => c.ToDto()),
+                    pageIndex,
+                    pageSize,
+                    totalItems
+                );
             });
         }
     }

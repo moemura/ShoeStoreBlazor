@@ -107,7 +107,7 @@ namespace WebApp.Services.Brands
             return brands.Select(b => b.ToDto());
         }
 
-        public async Task<PaginationData<BrandDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
+        public async Task<PaginatedList<BrandDto>> FilterAndPagin(int pageIndex, int pageSize, Dictionary<string, string> filter)
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
             var query = dbContext.Brands.AsQueryable();
@@ -125,19 +125,15 @@ namespace WebApp.Services.Brands
 
             var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
 
-            return new PaginationData<BrandDto>
-            {
-                Data = brands.Select(b => b.ToDto()),
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                ItemCount = totalItems,
-                PageCount = pageCount,
-                HasNext = pageIndex < pageCount,
-                HasPrevious = pageIndex > 1
-            };
+            return new PaginatedList<BrandDto>(
+                brands.Select(b => b.ToDto()),
+                pageIndex,
+                pageSize,
+                totalItems
+            );
         }
 
-        public async Task<PaginationData<BrandDto>> GetPagination(int page, int pageSize)
+        public async Task<PaginatedList<BrandDto>> GetPagination(int page, int pageSize)
         {
             var cacheKey = $"{CACHE_PREFIX}Page_{page}_Size_{pageSize}";
             return await _cacheService.GetOrSetAsync(cacheKey, async () =>
@@ -159,14 +155,12 @@ namespace WebApp.Services.Brands
                     })
                     .ToListAsync();
                 var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
-                return new PaginationData<BrandDto>
-                {
-                    Data = items,
-                    ItemCount = totalItems,
-                    PageCount = pageCount,
-                    HasNext = page < pageCount,
-                    HasPrevious = page > 1
-                };
+                return new PaginatedList<BrandDto>(
+                    items,
+                    page,
+                    pageSize,
+                    totalItems
+                );
             });
         }
     }
