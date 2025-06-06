@@ -5,14 +5,15 @@ import { cn } from "../lib/utils";
 import { categoryService } from '../services/categoryService';
 import { brandService } from '../services/brandService';
 import { useCart } from '../context/CartContext';
-import { ShoppingCart, Menu, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ShoppingCart, Menu, X, User } from 'lucide-react';
 
 const Header = ({ onCartClick }) => {
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { cartCount } = useCart();
+  const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,8 +53,18 @@ const Header = ({ onCartClick }) => {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    setIsMenuOpen(false);
+    navigate('/');
+  };
+
   const isActive = (path) => {
     return location.pathname === path;
+  };
+
+  const getUserDisplayName = () => {
+    return user?.fullName || user?.email || 'Người dùng';
   };
 
   return (
@@ -216,47 +227,67 @@ const Header = ({ onCartClick }) => {
 
             {/* Login/Avatar - Desktop */}
             <div className="hidden md:block">
-              {isLoggedIn ? (
+              {isAuthenticated ? (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="flex items-center space-x-2">
-                      <img
-                        src="/avatar.png"
-                        alt="Avatar"
-                        className="h-8 w-8 rounded-full"
-                      />
+                    <button className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg">
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <User className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {getUserDisplayName()}
+                      </span>
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[200px] p-0" align="end">
                     <div className="grid gap-1 p-2">
+                      <div className="px-2 py-1.5 text-sm font-medium text-gray-900 border-b">
+                        {user?.email}
+                      </div>
                       <Link
                         to="/profile"
                         className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
                       >
-                        Tài khoản
+                        <User className="mr-2 h-4 w-4" />
+                        Tài khoản của tôi
                       </Link>
                       <Link
                         to="/orders"
                         className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
                       >
-                        Đơn hàng
+                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Đơn hàng của tôi
                       </Link>
+                      <div className="border-t my-1"></div>
                       <button
-                        onClick={() => setIsLoggedIn(false)}
-                        className="flex items-center rounded-md px-2 py-1.5 text-sm text-red-600 hover:bg-gray-100"
+                        onClick={handleLogout}
+                        className="flex items-center rounded-md px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 w-full text-left"
                       >
+                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
                         Đăng xuất
                       </button>
                     </div>
                   </PopoverContent>
                 </Popover>
               ) : (
-                <Link
-                  to="/login"
-                  className="text-gray-700 hover:text-gray-900"
-                >
-                  Đăng nhập
-                </Link>
+                <div className="flex items-center space-x-2">
+                  <Link
+                    to="/login"
+                    className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                  >
+                    Đăng nhập
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Đăng ký
+                  </Link>
+                </div>
               )}
             </div>
           </div>
@@ -314,6 +345,21 @@ const Header = ({ onCartClick }) => {
           {/* Mobile Navigation */}
           <nav className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
+              {/* User section for mobile */}
+              {isAuthenticated && (
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <User className="h-6 w-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{getUserDisplayName()}</p>
+                      <p className="text-sm text-gray-500">{user?.email}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Link
                 to="/products"
                 className={cn(
@@ -369,8 +415,8 @@ const Header = ({ onCartClick }) => {
               </Link>
 
               {/* Mobile Login/Avatar */}
-              {isLoggedIn ? (
-                <div className="space-y-2">
+              {isAuthenticated ? (
+                <div className="space-y-2 border-t pt-4">
                   <Link
                     to="/profile"
                     className={cn(
@@ -379,7 +425,7 @@ const Header = ({ onCartClick }) => {
                     )}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Tài khoản
+                    Tài khoản của tôi
                   </Link>
                   <Link
                     to="/orders"
@@ -389,29 +435,38 @@ const Header = ({ onCartClick }) => {
                     )}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Đơn hàng
+                    Đơn hàng của tôi
                   </Link>
                   <button
-                    onClick={() => {
-                      setIsLoggedIn(false);
-                      setIsMenuOpen(false);
-                    }}
+                    onClick={handleLogout}
                     className="block w-full text-left text-lg font-medium text-red-600"
                   >
                     Đăng xuất
                   </button>
                 </div>
               ) : (
-                <Link
-                  to="/login"
-                  className={cn(
-                    "block text-lg font-medium text-gray-900",
-                    isActive('/login') && "font-semibold text-black"
-                  )}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Đăng nhập
-                </Link>
+                <div className="space-y-2 border-t pt-4">
+                  <Link
+                    to="/login"
+                    className={cn(
+                      "block text-lg font-medium text-gray-900",
+                      isActive('/login') && "font-semibold text-black"
+                    )}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Đăng nhập
+                  </Link>
+                  <Link
+                    to="/register"
+                    className={cn(
+                      "block text-lg font-medium text-indigo-600",
+                      isActive('/register') && "font-semibold text-indigo-800"
+                    )}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Đăng ký
+                  </Link>
+                </div>
               )}
             </div>
           </nav>

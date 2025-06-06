@@ -50,7 +50,7 @@ namespace WebApp.Controllers
         }
         [HttpDelete("item/{inventoryId}")]
         [AllowAnonymous]
-        public async Task<IActionResult> RemoveItem([FromHeader(Name = "GuestId")] string guestId, int inventoryId)
+        public async Task<IActionResult> RemoveItem([FromHeader(Name = "GuestId")] string? guestId, int inventoryId)
         {
             var userId = User.Identity.IsAuthenticated
                 ? User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -61,7 +61,7 @@ namespace WebApp.Controllers
         }
         [HttpDelete]
         [AllowAnonymous]
-        public async Task<IActionResult> ClearCart([FromHeader(Name = "GuestId")] string guestId = null)
+        public async Task<IActionResult> ClearCart([FromHeader(Name = "GuestId")] string? guestId = null)
         {
             var userId = User.Identity.IsAuthenticated
                 ? User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -72,7 +72,7 @@ namespace WebApp.Controllers
         }
         [HttpGet("count")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetCartItemCount([FromHeader(Name = "GuestId")] string guestId = null)
+        public async Task<IActionResult> GetCartItemCount([FromHeader(Name = "GuestId")] string? guestId = null)
         {
             var userId = User.Identity.IsAuthenticated
                 ? User.FindFirstValue(ClaimTypes.NameIdentifier)

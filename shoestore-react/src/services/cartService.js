@@ -114,8 +114,13 @@ export const cartService = {
     try {
       const guestId = localStorage.getItem('guestId');
       if (guestId) {
-        await axios.post(`${API_URL}/Cart/merge`, { guestId }, {
-          headers: getHeaders()
+        const token = localStorage.getItem('token');
+        await axios.post(`${API_URL}/Cart/merge`, {}, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'GuestId': guestId
+          }
         });
         // Remove guest ID after successful merge
         localStorage.removeItem('guestId');

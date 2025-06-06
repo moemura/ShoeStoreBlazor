@@ -5,6 +5,13 @@ import ProductDetail from '../pages/ProductDetail';
 import Products from '../pages/Products';
 import Cart from '../pages/Cart';
 import NotFound from '../pages/NotFound';
+import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
+import ForgotPasswordPage from '../pages/ForgotPasswordPage';
+import ResetPasswordPage from '../pages/ResetPasswordPage';
+import ProfilePage from '../pages/ProfilePage';
+import ChangePasswordPage from '../pages/ChangePasswordPage';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 const router = createBrowserRouter([
   {
@@ -27,11 +34,45 @@ const router = createBrowserRouter([
         path: 'cart',
         element: <Cart />
       },
+      // Protected routes
+      {
+        path: 'profile',
+        element: (
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'change-password',
+        element: (
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        )
+      },
       {
         path: '*',
         element: <NotFound />
       }
     ]
+  },
+  // Authentication routes (no layout)
+  {
+    path: 'login',
+    element: <LoginPage />
+  },
+  {
+    path: 'register',
+    element: <RegisterPage />
+  },
+  {
+    path: 'forgot-password',
+    element: <ForgotPasswordPage />
+  },
+  {
+    path: 'reset-password',
+    element: <ResetPasswordPage />
   }
 ]);
 

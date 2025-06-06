@@ -1,14 +1,17 @@
 import { RouterProvider } from 'react-router-dom';
 import router from './routes';
 import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/Toast';
 
 const App = () => {
   return (
     <ToastProvider>
-      <CartProvider>
-        <RouterProvider router={router} />
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <RouterProvider router={router} />
+        </CartProvider>
+      </AuthProvider>
     </ToastProvider>
   );
 };
