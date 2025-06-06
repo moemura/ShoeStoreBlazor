@@ -1,26 +1,40 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 
 const CartDrawer = ({ isOpen, onClose }) => {
-  const [cartItems, setCartItems] = useState([]); // Sẽ được thay thế bằng state management sau
+  const { cart, loading, error, updateQuantity, removeFromCart, clearError } = useCart();
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleQuantityChange = (itemId, newQuantity) => {
+  const handleQuantityChange = async (inventoryId, newQuantity) => {
     if (newQuantity < 1) return;
-    setCartItems(items =>
-      items.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
+    setIsUpdating(true);
+    await updateQuantity(inventoryId, newQuantity);
+    setIsUpdating(false);
   };
 
-  const handleRemoveItem = (itemId) => {
-    setCartItems(items => items.filter(item => item.id !== itemId));
+  const handleRemoveItem = async (inventoryId) => {
+    setIsUpdating(true);
+    await removeFromCart(inventoryId);
+    setIsUpdating(false);
   };
 
+  // Calculate subtotal from cart items
+  const cartItems = cart?.items || [];
   const subtotal = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
+    (total, item) => {
+      const effectivePrice = item.salePrice || item.price || 0;
+      return total + effectivePrice * item.quantity;
+    },
     0
   );
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  };
 
   return (
     <>
@@ -66,7 +80,31 @@ const CartDrawer = ({ isOpen, onClose }) => {
 
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4">
-            {cartItems.length === 0 ? (
+            {/* Error Display */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">{error}</span>
+                  <button
+                    onClick={clearError}
+                    className="text-red-700 hover:text-red-900"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            )}
+
+            {cartItems.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -89,18 +127,19 @@ const CartDrawer = ({ isOpen, onClose }) => {
             ) : (
               <div className="space-y-4">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex gap-4">
+                  <div key={item.inventoryId} className="flex gap-4">
                     <img
-                      src={item.imageUrl}
-                      alt={item.name}
+                      src={item.mainImage || '/images/defaults/product-default.jpg'}
+                      alt={item.productName}
                       className="w-20 h-20 object-cover rounded"
                     />
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <h3 className="font-medium">{item.name}</h3>
+                        <h3 className="font-medium">{item.productName}</h3>
                         <button
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="text-gray-500 hover:text-red-500"
+                          onClick={() => handleRemoveItem(item.inventoryId)}
+                          disabled={isUpdating}
+                          className="text-gray-500 hover:text-red-500 disabled:opacity-50"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -119,24 +158,28 @@ const CartDrawer = ({ isOpen, onClose }) => {
                           </svg>
                         </button>
                       </div>
-                      <p className="text-sm text-gray-500">{item.brandName}</p>
+                      <p className="text-sm text-gray-500">Size: {item.size}</p>
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center border rounded">
                           <button
-                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                            className="px-2 py-1 hover:bg-gray-100"
+                            onClick={() => handleQuantityChange(item.inventoryId, item.quantity - 1)}
+                            disabled={isUpdating || item.quantity <= 1}
+                            className="px-2 py-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             -
                           </button>
                           <span className="px-2 py-1">{item.quantity}</span>
                           <button
-                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                            className="px-2 py-1 hover:bg-gray-100"
+                            onClick={() => handleQuantityChange(item.inventoryId, item.quantity + 1)}
+                            disabled={isUpdating}
+                            className="px-2 py-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             +
                           </button>
                         </div>
-                        <p className="font-medium">${item.price * item.quantity}</p>
+                        <p className="font-medium">
+                          {formatPrice((item.salePrice || item.price || 0) * item.quantity)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -149,7 +192,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
           <div className="border-t p-4">
             <div className="flex justify-between mb-4">
               <span className="font-medium">Tổng cộng:</span>
-              <span className="font-bold">${subtotal}</span>
+              <span className="font-bold">{formatPrice(subtotal)}</span>
             </div>
             <Link
               to="/checkout"

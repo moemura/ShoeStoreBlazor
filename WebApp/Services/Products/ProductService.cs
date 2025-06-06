@@ -9,10 +9,10 @@ namespace WebApp.Services.Products
         private readonly ICacheService _cacheService;
         private const string CACHE_PREFIX = "Product_";
 
-        public ProductService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICacheService cacheService)
+        public ProductService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory)
         {
             _dbContextFactory = dbContextFactory;
-            _cacheService = cacheService;
+            _cacheService = new NoCacheService();
         }
 
         public async Task<IEnumerable<ProductDto>> GetAll()
@@ -174,7 +174,7 @@ namespace WebApp.Services.Products
             var filterKey = string.Join("_", orderedFilter.Select(f => $"{f.Key}_{f.Value}"));
             var cacheKey = $"{CACHE_PREFIX}Filter_{filterKey}_Page_{pageIndex}_Size_{pageSize}";
 
-            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            var data = await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
                 using var dbContext = await _dbContextFactory.CreateDbContextAsync();
 
@@ -220,13 +220,15 @@ namespace WebApp.Services.Products
 
                 var pageCount = (int)Math.Ceiling(totalItems / (double)pageSize);
 
-                return new PaginatedList<ProductDto>(
+                var result = new PaginatedList<ProductDto>(
                     orderedProducts.Select(p => p.ToDto()),
                     pageIndex,
                     pageSize,
                     totalItems
                 );
+                return result;
             });
+            return data;
         }
 
         public async Task<PaginatedList<ProductDto>> GetPagination(int pageIndex, int pageSize)
@@ -305,7 +307,10 @@ namespace WebApp.Services.Products
         public async Task<Inventory> CheckInventory(int inventoryId, int quantity)
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var inventory = await dbContext.Inventories.Include(i => i.Product).FirstOrDefaultAsync(i => i.Id == inventoryId);
+            var inventory = await dbContext.Inventories
+                .Include(i => i.Product)
+                .ThenInclude(p => p.Brand)
+                .FirstOrDefaultAsync(i => i.Id == inventoryId);
             if (inventory == null || inventory.Quantity < quantity)
                 return null;
             return inventory;

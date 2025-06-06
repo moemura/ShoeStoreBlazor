@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { productService } from '../services/productService';
+import { useCart } from '../context/CartContext';
+import { useToast } from '../components/Toast';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart, loading: cartLoading } = useCart();
+  const { addToast } = useToast();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,13 +46,35 @@ const ProductDetail = () => {
     }).format(price);
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedSize) {
-      alert('Vui lòng chọn size');
+      addToast('Vui lòng chọn size', 'warning');
       return;
     }
-    // TODO: Implement add to cart functionality
-    console.log('Add to cart:', { productId: id, size: selectedSize, quantity });
+
+    // Find the inventory ID for the selected size
+    const selectedInventory = product.inventories.find(inv => inv.sizeId === selectedSize);
+    if (!selectedInventory) {
+      addToast('Không tìm thấy size được chọn', 'error');
+      return;
+    }
+
+    if (selectedInventory.quantity < quantity) {
+      addToast(`Chỉ còn ${selectedInventory.quantity} sản phẩm trong kho`, 'warning');
+      return;
+    }
+
+    try {
+      const success = await addToCart(selectedInventory.id, quantity);
+      if (success) {
+        addToast(`Đã thêm ${quantity} sản phẩm vào giỏ hàng!`, 'success');
+      } else {
+        addToast('Có lỗi xảy ra khi thêm vào giỏ hàng', 'error');
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      addToast('Có lỗi xảy ra khi thêm vào giỏ hàng', 'error');
+    }
   };
 
   const handleNextImage = () => {
@@ -330,9 +356,17 @@ const ProductDetail = () => {
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
-            className="w-full py-3 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
+            disabled={cartLoading || !selectedSize}
+            className="w-full py-3 bg-black text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Thêm vào giỏ hàng
+            {cartLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Đang thêm...
+              </>
+            ) : (
+              'Thêm vào giỏ hàng'
+            )}
           </button>
         </div>
       </div>

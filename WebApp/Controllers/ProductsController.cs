@@ -55,8 +55,8 @@ namespace WebApp.Endpoints
             if (maxPrice!=null)
                 filter["maxPrice"] = maxPrice;
 
-            var data = await service.FilterAndPagin(pageIndex, pageSize, filter);
-            return Ok(data);
+            var result = await service.FilterAndPagin(pageIndex, pageSize, filter);
+            return Ok(result);
         }
     }
 }

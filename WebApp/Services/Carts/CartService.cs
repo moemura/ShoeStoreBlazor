@@ -39,9 +39,13 @@ public class CartService : ICartService
             {
                 InventoryId = request.InventoryId,
                 Quantity = request.Quantity,
+                ProductId = product?.Id ?? string.Empty,
                 ProductName = product?.Name ?? string.Empty,
                 Size = inventory.SizeId,
-                // Có thể bổ sung thêm ProductId, MainImage nếu cần
+                MainImage = product?.MainImage,
+                BrandName = product?.Brand?.Name,
+                Price = product?.Price ?? 0,
+                SalePrice = product?.SalePrice
             };
             cart.Items.Add(item);
         }

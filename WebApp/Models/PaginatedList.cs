@@ -1,6 +1,6 @@
 ﻿namespace WebApp.Models
 {
-    public class PaginatedList<T> : List<T>
+    public class PaginatedList<T>
     {
         public IEnumerable<T>? Data { get; set; }
         public int PageIndex { get; set; }
