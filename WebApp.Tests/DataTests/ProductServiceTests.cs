@@ -42,7 +42,7 @@ namespace WebApp.Tests.DataTests
             context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
 
-            _productService = new ProductService(_contextFactory, new NoCacheService());
+            _productService = new ProductService(_contextFactory);
         }
 
         [Fact]

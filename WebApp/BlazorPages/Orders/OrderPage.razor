@@ -1,0 +1,568 @@
+@page "/orders"
+@using AntDesign.TableModels
+@using WebApp.Models
+@using WebApp.Models.DTOs
+@using WebApp.Services.Orders
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "RequireAdminRole")]
+@inject IOrderService orderService
+@inject MessageService MessageService
+
+<PageTitle>Quản lý đơn hàng</PageTitle>
+<Breadcrumb>
+    <BreadcrumbItem Href="">
+        <Icon Type="@IconType.Outline.Home" />
+    </BreadcrumbItem>
+    <BreadcrumbItem Href="">
+        <Icon Type="@IconType.Outline.ShoppingCart" />
+        <span>Quản lý đơn hàng</span>
+    </BreadcrumbItem>
+</Breadcrumb>
+
+<br />
+
+<Space>
+    <SpaceItem>
+        <Input @bind-Value="@_searchText"
+               Placeholder="Tìm theo SĐT, tên khách hàng..."
+               Style="width: 250px"
+               OnChange="@(async (string value) => await OnSearch(value))" />
+    </SpaceItem>
+    <SpaceItem>
+        <Button Type="@ButtonType.Default" OnClick="ShowFilterModal">
+            <Icon Type="filter" Theme="IconThemeType.Outline" />
+            Lọc
+        </Button>
+    </SpaceItem>
+    <SpaceItem>
+        @if (_currentFilter.Any())
+        {
+            <Button Type="@ButtonType.Default" OnClick="ClearFilters">
+                <Icon Type="clear" Theme="IconThemeType.Outline" />
+                Xóa bộ lọc
+            </Button>
+        }
+    </SpaceItem>
+    <SpaceItem>
+        <Select TItem="int"
+                TItemValue="int"
+                Style="width: 120px"
+                @bind-Value="@pageSize"
+                OnChange="@(async (int value) => await OnPageSizeChange(value))">
+            <SelectOptions>
+                <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
+                <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
+                <SelectOption TItem="int" TItemValue="int" Value="20" Label="20 / trang" />
+                <SelectOption TItem="int" TItemValue="int" Value="50" Label="50 / trang" />
+            </SelectOptions>
+        </Select>
+    </SpaceItem>
+</Space>
+
+<p />
+
+<Table @ref=_table
+       TItem="OrderDto"
+       DataSource="@_data"
+       Total="@totalItems"
+       PageSize="@pageSize"
+       PageIndex="@pageIndex"
+       OnChange="@OnTableChange"
+       Loading="_loading">
+    <PropertyColumn Property="c=>c.Id" Title="Mã đơn hàng">
+        <Text Code>@context.Id.ToString().Substring(0, 8)...</Text>
+    </PropertyColumn>
+    <PropertyColumn Property="c=>c.CustomerName" Title="Khách hàng">
+        <div>
+            <div><strong>@context.CustomerName</strong></div>
+            <div><Text Type="@TextElementType.Secondary">@context.Phone</Text></div>
+        </div>
+    </PropertyColumn>
+    <PropertyColumn Property="c=>c.TotalAmount" Title="Tổng tiền">
+        <Text Strong>@context.TotalAmount.ToString("N0") VND</Text>
+    </PropertyColumn>
+    <PropertyColumn Property="c=>c.Status" Title="Trạng thái">
+        @{
+            var (color, text) = GetOrderStatusInfo(context.Status);
+        }
+        <Badge Status="@color" Text="@text" />
+    </PropertyColumn>
+    <PropertyColumn Property="c=>c.PaymentMethod" Title="Thanh toán">
+        <Tag Color="@GetPaymentMethodColor(context.PaymentMethod)">
+            @GetPaymentMethodText(context.PaymentMethod)
+        </Tag>
+    </PropertyColumn>
+    <PropertyColumn Property="c=>c.CreatedAt" Title="Ngày tạo">
+        @context.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+    </PropertyColumn>
+    <ActionColumn Title="Thao tác">
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="() => ShowDetailModal(context)">
+                    <Icon Type="eye" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" OnClick="() => ShowUpdateStatusModal(context)">
+                    <Icon Type="edit" />
+                </Button>
+            </SpaceItem>
+            @if (context.Status == OrderStatus.Pending || context.Status == OrderStatus.Prepairing)
+            {
+                <SpaceItem>
+                    <Popconfirm Title="Xác nhận hủy đơn hàng?"
+                                OkText="Có"
+                                CancelText="Không"
+                                OnConfirm="() => OnCancelOrder(context.Id)">
+                        <Button Danger Size="@ButtonSize.Small">
+                            <Icon Type="close" />
+                        </Button>
+                    </Popconfirm>
+                </SpaceItem>
+            }
+        </Space>
+    </ActionColumn>
+</Table>
+
+<!-- Filter Modal -->
+<Modal Title="@("Lọc đơn hàng")"
+       Visible="@_filterModalVisible"
+       OnOk="@OnFilterOk"
+       OnCancel="@OnFilterCancel"
+       Width="600">
+    <Form Model="@_filterModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <FormItem Label="Tên khách hàng">
+            <Input @bind-Value="@_filterModel.CustomerName" />
+        </FormItem>
+        <FormItem Label="Số điện thoại">
+            <Input @bind-Value="@_filterModel.Phone" />
+        </FormItem>
+        <FormItem Label="Trạng thái">
+            <Select TItem="OrderStatus?"
+                    TItemValue="OrderStatus?"
+                    @bind-Value="@_filterModel.Status"
+                    Placeholder="Chọn trạng thái"
+                    AllowClear="true">
+                <SelectOptions>
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Pending" Label="Chờ xử lý" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Prepairing" Label="Đang chuẩn bị" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Shipping" Label="Đang giao" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Completed" Label="Hoàn thành" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Cancelled" Label="Đã hủy" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Rejected" Label="Từ chối" />
+                </SelectOptions>
+            </Select>
+        </FormItem>
+        <FormItem Label="Phương thức TT">
+            <Select TItem="PaymentMethod?"
+                    TItemValue="PaymentMethod?"
+                    @bind-Value="@_filterModel.PaymentMethod"
+                    Placeholder="Chọn phương thức"
+                    AllowClear="true">
+                <SelectOptions>
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.COD" Label="COD" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.BankTranfer" Label="Chuyển khoản" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.CreditCard" Label="Thẻ tín dụng" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.MoMo" Label="MoMo" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.VnPay" Label="VnPay" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.ZaloPay" Label="ZaloPay" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.PayPal" Label="PayPal" />
+                </SelectOptions>
+            </Select>
+        </FormItem>
+        <FormItem Label="Khoảng thời gian">
+            <RangePicker @bind-Value="@_filterModel.DateRange" Format="dd/MM/yyyy" />
+        </FormItem>
+        <FormItem Label="Khoảng tiền">
+            <Row Gutter="8">
+                <Col Span="12">
+                    <AntDesign.InputNumber @bind-Value="@_filterModel.MinAmount" Placeholder="Từ" Min="0" Style="width: 100%" />
+                </Col>
+                <Col Span="12">
+                    <AntDesign.InputNumber @bind-Value="@_filterModel.MaxAmount" Placeholder="Đến" Min="0" Style="width: 100%" />
+                </Col>
+            </Row>
+        </FormItem>
+    </Form>
+</Modal>
+
+<!-- Detail Modal -->
+<Modal Title="@("Chi tiết đơn hàng")"
+       Visible="@_detailModalVisible"
+       OnCancel="@OnDetailCancel"
+       Width="800"
+       Footer="null">
+    @if (_currentOrder != null)
+    {
+                 <Descriptions Title="Thông tin khách hàng" Bordered="true" Column="2">
+             <DescriptionsItem Title="Tên khách hàng">@_currentOrder.CustomerName</DescriptionsItem>
+             <DescriptionsItem Title="Số điện thoại">@_currentOrder.Phone</DescriptionsItem>
+             <DescriptionsItem Title="Email">@(_currentOrder.Email ?? "Không có")</DescriptionsItem>
+             <DescriptionsItem Title="Địa chỉ">@_currentOrder.Address</DescriptionsItem>
+             <DescriptionsItem Title="Ghi chú khách hàng" Span="2">
+                 @(_currentOrder.CustomerNote ?? "Không có")
+             </DescriptionsItem>
+         </Descriptions>
+
+        <br />
+
+                 <Descriptions Title="Thông tin đơn hàng" Bordered="true" Column="2">
+             <DescriptionsItem Title="Mã đơn hàng">
+                 <Text Code>@_currentOrder.Id</Text>
+             </DescriptionsItem>
+             <DescriptionsItem Title="Ngày tạo">
+                 @_currentOrder.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+             </DescriptionsItem>
+             <DescriptionsItem Title="Trạng thái">
+                 @{
+                     var (color, text) = GetOrderStatusInfo(_currentOrder.Status);
+                 }
+                 <Badge Status="@color" Text="@text" />
+             </DescriptionsItem>
+             <DescriptionsItem Title="Phương thức TT">
+                 <Tag Color="@GetPaymentMethodColor(_currentOrder.PaymentMethod)">
+                     @GetPaymentMethodText(_currentOrder.PaymentMethod)
+                 </Tag>
+             </DescriptionsItem>
+             <DescriptionsItem Title="Mã voucher">
+                 @(_currentOrder.VoucherCode ?? "Không có")
+             </DescriptionsItem>
+             <DescriptionsItem Title="Ghi chú admin">
+                 @(_currentOrder.Note ?? "Không có")
+             </DescriptionsItem>
+         </Descriptions>
+
+        <br />
+
+        <Card Title="Danh sách sản phẩm">
+                         <Table TItem="OrderItemDto" DataSource="@_currentOrder.Items" HidePagination="true">
+                <PropertyColumn Property="c=>c.MainImage" Title="Ảnh">
+                    <Avatar Size="@("3rem")" Src="@context.MainImage" />
+                </PropertyColumn>
+                <PropertyColumn Property="c=>c.ProductName" Title="Sản phẩm">
+                    <div>
+                        <div><strong>@context.ProductName</strong></div>
+                        <div><Text Type="@TextElementType.Secondary">Size: @context.Size</Text></div>
+                    </div>
+                </PropertyColumn>
+                <PropertyColumn Property="c=>c.Price" Title="Đơn giá">
+                    @context.Price.ToString("N0") VND
+                </PropertyColumn>
+                <PropertyColumn Property="c=>c.Quantity" Title="SL">
+                    @context.Quantity
+                </PropertyColumn>
+                <PropertyColumn Property="c=>c.Subtotal" Title="Thành tiền">
+                    <Text Strong>@context.Subtotal.ToString("N0") VND</Text>
+                </PropertyColumn>
+            </Table>
+            <div style="text-align: right; margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
+                <Text Strong Style="font-size: 16px;">
+                    Tổng cộng: @_currentOrder.TotalAmount.ToString("N0") VND
+                </Text>
+            </div>
+        </Card>
+    }
+</Modal>
+
+<!-- Update Status Modal -->
+<Modal Title="@("Cập nhật trạng thái")"
+       Visible="@_updateStatusModalVisible"
+       OnOk="@OnUpdateStatusOk"
+       OnCancel="@OnUpdateStatusCancel"
+       Width="500">
+    @if (_currentOrder != null)
+    {
+        <Form Model="@_updateStatusModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+            <FormItem Label="Đơn hàng">
+                <Text Code>@_currentOrder.Id.ToString().Substring(0, 8)...</Text>
+            </FormItem>
+            <FormItem Label="Trạng thái hiện tại">
+                @{
+                    var (color, text) = GetOrderStatusInfo(_currentOrder.Status);
+                }
+                <Badge Status="@color" Text="@text" />
+            </FormItem>
+            <FormItem Label="Trạng thái mới">
+                <Select TItem="OrderStatus"
+                        TItemValue="OrderStatus"
+                        @bind-Value="@_updateStatusModel.NewStatus"
+                        Placeholder="Chọn trạng thái mới">
+                    <SelectOptions>
+                        @foreach (var status in GetAvailableStatusTransitions(_currentOrder.Status))
+                        {
+                            var (_, statusText) = GetOrderStatusInfo(status);
+                            <SelectOption TItem="OrderStatus" TItemValue="OrderStatus" Value="status" Label="@statusText" />
+                        }
+                    </SelectOptions>
+                </Select>
+            </FormItem>
+            <FormItem Label="Ghi chú">
+                <TextArea @bind-Value="@_updateStatusModel.Note" Rows="3" Placeholder="Thêm ghi chú (tùy chọn)" />
+            </FormItem>
+        </Form>
+    }
+</Modal>
+
+@code {
+    private IEnumerable<OrderDto> _data = [];
+    private ITable _table = default!;
+    private bool _loading = true;
+    private string _searchText = "";
+    private bool _filterModalVisible = false;
+    private bool _detailModalVisible = false;
+    private bool _updateStatusModalVisible = false;
+    private FilterModel _filterModel = new();
+    private UpdateStatusModel _updateStatusModel = new();
+    private Dictionary<string, string> _currentFilter = new();
+    private OrderDto? _currentOrder;
+
+    private int pageSize = 10;
+    private int pageIndex = 1;
+    private int totalItems = 0;
+
+    private class FilterModel
+    {
+        public string CustomerName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public OrderStatus? Status { get; set; }
+        public PaymentMethod? PaymentMethod { get; set; }
+        public DateTime[]? DateRange { get; set; }
+        public double? MinAmount { get; set; }
+        public double? MaxAmount { get; set; }
+    }
+
+    private class UpdateStatusModel
+    {
+        public OrderStatus NewStatus { get; set; }
+        public string Note { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        await Task.Delay(100);
+        
+        try
+        {
+            var result = await orderService.FilterAndPaging(pageIndex, pageSize, _currentFilter);
+            _data = result.Data;
+            totalItems = result.ItemCount;
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải dữ liệu: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearch(string value)
+    {
+        _searchText = value;
+        if (!string.IsNullOrEmpty(value))
+        {
+            _currentFilter["name"] = value;
+            _currentFilter["phone"] = value;
+        }
+        else
+        {
+            _currentFilter.Remove("name");
+            _currentFilter.Remove("phone");
+        }
+        pageIndex = 1;
+        await LoadData();
+    }
+
+    private async Task OnPageSizeChange(int newSize)
+    {
+        pageSize = newSize;
+        pageIndex = 1;
+        await LoadData();
+    }
+
+    private async Task OnTableChange(QueryModel<OrderDto> queryModel)
+    {
+        pageIndex = queryModel.PageIndex;
+        pageSize = queryModel.PageSize;
+        await LoadData();
+    }
+
+    private void ShowFilterModal()
+    {
+        _filterModel = new FilterModel
+        {
+            CustomerName = _currentFilter.GetValueOrDefault("name", ""),
+            Phone = _currentFilter.GetValueOrDefault("phone", ""),
+            Status = _currentFilter.ContainsKey("status") ? Enum.Parse<OrderStatus>(_currentFilter["status"]) : null,
+            PaymentMethod = _currentFilter.ContainsKey("paymentMethod") ? Enum.Parse<PaymentMethod>(_currentFilter["paymentMethod"]) : null,
+            MinAmount = _currentFilter.ContainsKey("minAmount") ? double.Parse(_currentFilter["minAmount"]) : null,
+            MaxAmount = _currentFilter.ContainsKey("maxAmount") ? double.Parse(_currentFilter["maxAmount"]) : null
+        };
+        _filterModalVisible = true;
+    }
+
+    private async Task OnFilterOk()
+    {
+        _currentFilter.Clear();
+        
+        if (!string.IsNullOrEmpty(_filterModel.CustomerName))
+            _currentFilter["name"] = _filterModel.CustomerName;
+        if (!string.IsNullOrEmpty(_filterModel.Phone))
+            _currentFilter["phone"] = _filterModel.Phone;
+        if (_filterModel.Status.HasValue)
+            _currentFilter["status"] = _filterModel.Status.Value.ToString();
+        if (_filterModel.PaymentMethod.HasValue)
+            _currentFilter["paymentMethod"] = _filterModel.PaymentMethod.Value.ToString();
+        if (_filterModel.MinAmount.HasValue)
+            _currentFilter["minAmount"] = _filterModel.MinAmount.Value.ToString();
+        if (_filterModel.MaxAmount.HasValue)
+            _currentFilter["maxAmount"] = _filterModel.MaxAmount.Value.ToString();
+
+        pageIndex = 1;
+        await LoadData();
+        _filterModalVisible = false;
+    }
+
+    private void OnFilterCancel()
+    {
+        _filterModalVisible = false;
+    }
+
+    private async Task ClearFilters()
+    {
+        _currentFilter.Clear();
+        _searchText = "";
+        _filterModel = new FilterModel();
+        pageIndex = 1;
+        await LoadData();
+        MessageService.Success("Đã xóa bộ lọc!");
+    }
+
+    private async Task ShowDetailModal(OrderDto order)
+    {
+        try
+        {
+            _currentOrder = await orderService.GetOrderById(order.Id);
+            _detailModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải chi tiết đơn hàng: {ex.Message}");
+        }
+    }
+
+    private void OnDetailCancel()
+    {
+        _detailModalVisible = false;
+        _currentOrder = null;
+    }
+
+    private void ShowUpdateStatusModal(OrderDto order)
+    {
+        _currentOrder = order;
+        _updateStatusModel = new UpdateStatusModel { NewStatus = order.Status };
+        _updateStatusModalVisible = true;
+    }
+
+    private async Task OnUpdateStatusOk()
+    {
+                 try
+         {
+             await orderService.UpdateOrderStatus(_currentOrder!.Id, (int)_updateStatusModel.NewStatus, _updateStatusModel.Note);
+             MessageService.Success("Cập nhật trạng thái thành công!");
+             _updateStatusModalVisible = false;
+             await LoadData();
+         }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi cập nhật trạng thái: {ex.Message}");
+        }
+    }
+
+    private void OnUpdateStatusCancel()
+    {
+        _updateStatusModalVisible = false;
+        _currentOrder = null;
+    }
+
+    private async Task OnCancelOrder(Guid orderId)
+    {
+        try
+        {
+            // Note: OrderService.CancelOrder requires userId, but we're admin canceling
+            // We might need to modify the service or use UpdateOrderStatus instead
+            await orderService.UpdateOrderStatus(orderId, (int)OrderStatus.Cancelled, "Hủy bởi admin");
+            MessageService.Success("Hủy đơn hàng thành công!");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi hủy đơn hàng: {ex.Message}");
+        }
+    }
+
+    private (BadgeStatus color, string text) GetOrderStatusInfo(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Pending => (BadgeStatus.Warning, "Chờ xử lý"),
+            OrderStatus.Prepairing => (BadgeStatus.Processing, "Đang chuẩn bị"),
+            OrderStatus.Shipping => (BadgeStatus.Success, "Đang giao"),
+            OrderStatus.Completed => (BadgeStatus.Success, "Hoàn thành"),
+            OrderStatus.Cancelled => (BadgeStatus.Error, "Đã hủy"),
+            OrderStatus.Rejected => (BadgeStatus.Default, "Từ chối"),
+            _ => (BadgeStatus.Default, "Không xác định")
+        };
+    }
+
+    private string GetPaymentMethodColor(PaymentMethod method)
+    {
+        return method switch
+        {
+            PaymentMethod.COD => "orange",
+            PaymentMethod.BankTranfer => "blue",
+            PaymentMethod.CreditCard => "purple",
+            PaymentMethod.MoMo => "pink",
+            PaymentMethod.VnPay => "red",
+            PaymentMethod.ZaloPay => "cyan",
+            PaymentMethod.PayPal => "geekblue",
+            _ => "default"
+        };
+    }
+
+    private string GetPaymentMethodText(PaymentMethod method)
+    {
+        return method switch
+        {
+            PaymentMethod.COD => "COD",
+            PaymentMethod.BankTranfer => "Chuyển khoản",
+            PaymentMethod.CreditCard => "Thẻ tín dụng",
+            PaymentMethod.MoMo => "MoMo",
+            PaymentMethod.VnPay => "VnPay",
+            PaymentMethod.ZaloPay => "ZaloPay",
+            PaymentMethod.PayPal => "PayPal",
+            _ => "Không xác định"
+        };
+    }
+
+    private List<OrderStatus> GetAvailableStatusTransitions(OrderStatus currentStatus)
+    {
+        return currentStatus switch
+        {
+            OrderStatus.Pending => new List<OrderStatus> { OrderStatus.Prepairing, OrderStatus.Cancelled, OrderStatus.Rejected },
+            OrderStatus.Prepairing => new List<OrderStatus> { OrderStatus.Shipping, OrderStatus.Cancelled },
+            OrderStatus.Shipping => new List<OrderStatus> { OrderStatus.Completed },
+            OrderStatus.Completed => new List<OrderStatus>(), // No transitions from completed
+            OrderStatus.Cancelled => new List<OrderStatus>(), // No transitions from cancelled
+            OrderStatus.Rejected => new List<OrderStatus>(), // No transitions from rejected
+            _ => new List<OrderStatus>()
+        };
+    }
+}
