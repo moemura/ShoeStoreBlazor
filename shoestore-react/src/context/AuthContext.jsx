@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { authService } from '../services/authService';
-import { isAuthenticated, clearAuthData } from '../services/api';
+import { isAuthenticated, clearAuthData, getToken } from '../services/api';
 
 // Initial state
 const initialState = {
@@ -244,6 +244,7 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     updateUser,
     clearError,
+    getToken, // Export getToken function
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

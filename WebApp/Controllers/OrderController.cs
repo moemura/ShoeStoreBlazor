@@ -19,7 +19,7 @@ public class OrderController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> CreateOrder([FromBody] OrderCreateRequest req, [FromHeader(Name = "GuestId")] string guestId = null)
     {
-        var userId = User.Identity.IsAuthenticated ? User.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+        var userId = User.Identity.IsAuthenticated ? User.FindFirst(ClaimTypes.NameIdentifier)?.Value : null;
         var order = await _orderService.CreateOrder(req, userId, guestId);
         return Ok(order);
     }

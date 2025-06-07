@@ -67,7 +67,7 @@ const Toast = ({ message, type = 'success', isVisible, onClose, duration = 3000 
 };
 
 // Toast Context for managing toasts globally
-import { createContext, useContext, useReducer } from 'react';
+import { createContext, useContext, useReducer, useCallback } from 'react';
 
 const ToastContext = createContext();
 
@@ -85,19 +85,19 @@ const toastReducer = (state, action) => {
 export const ToastProvider = ({ children }) => {
   const [toasts, dispatch] = useReducer(toastReducer, []);
 
-  const addToast = (message, type = 'success', duration = 3000) => {
+  const addToast = useCallback((message, type = 'success', duration = 3000) => {
     dispatch({
       type: 'ADD_TOAST',
       payload: { message, type, duration }
     });
-  };
+  }, []);
 
-  const removeToast = (id) => {
+  const removeToast = useCallback((id) => {
     dispatch({
       type: 'REMOVE_TOAST',
       payload: id
     });
-  };
+  }, []);
 
   return (
     <ToastContext.Provider value={{ addToast }}>

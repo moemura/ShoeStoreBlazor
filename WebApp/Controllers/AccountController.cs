@@ -38,6 +38,7 @@ public class AccountController : ControllerBase
     [HttpPut("profile")]
     public async Task<ActionResult<AuthResponseDto>> UpdateProfile(UpdateProfileDto model)
     {
+        bool authenticated = User.Identity.IsAuthenticated;
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();

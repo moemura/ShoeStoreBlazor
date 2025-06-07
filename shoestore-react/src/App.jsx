@@ -2,6 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import router from './routes';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
+import { OrderProvider } from './context/OrderContext';
 import { ToastProvider } from './components/Toast';
 
 const App = () => {
@@ -9,7 +10,9 @@ const App = () => {
     <ToastProvider>
       <AuthProvider>
         <CartProvider>
-          <RouterProvider router={router} />
+          <OrderProvider>
+            <RouterProvider router={router} />
+          </OrderProvider>
         </CartProvider>
       </AuthProvider>
     </ToastProvider>

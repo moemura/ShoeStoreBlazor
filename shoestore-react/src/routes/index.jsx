@@ -4,6 +4,10 @@ import Home from '../pages/Home';
 import ProductDetail from '../pages/ProductDetail';
 import Products from '../pages/Products';
 import Cart from '../pages/Cart';
+import Checkout from '../pages/Checkout';
+import OrderConfirmation from '../pages/OrderConfirmation';
+import Orders from '../pages/Orders';
+import OrderDetail from '../pages/OrderDetail';
 import NotFound from '../pages/NotFound';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
@@ -34,7 +38,31 @@ const router = createBrowserRouter([
         path: 'cart',
         element: <Cart />
       },
+      {
+        path: 'checkout',
+        element: <Checkout />
+      },
+      {
+        path: 'order-confirmation/:orderId',
+        element: <OrderConfirmation />
+      },
       // Protected routes
+      {
+        path: 'orders',
+        element: (
+          <ProtectedRoute>
+            <Orders />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'order-detail/:orderId',
+        element: (
+          <ProtectedRoute>
+            <OrderDetail />
+          </ProtectedRoute>
+        )
+      },
       {
         path: 'profile',
         element: (
