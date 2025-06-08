@@ -1,4 +1,5 @@
-﻿using WebApp.Services.Auth;
+﻿using WebApp.Services.Analysis;
+using WebApp.Services.Auth;
 using WebApp.Services.Brands;
 using WebApp.Services.Carts;
 using WebApp.Services.Catches;
@@ -27,6 +28,7 @@ public static class ServiceContainer
         services.AddScoped<IImageStorageService, ImgurService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IRevenueAnalysisService, RevenueAnalysisService>();
         services.AddHttpClient();
     }
     public static void AddExternalServices(this IServiceCollection services)

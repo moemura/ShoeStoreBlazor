@@ -1,7 +1,369 @@
-﻿@page "/"
+@page "/"
+@using WebApp.Services.Analysis
+@using WebApp.Models.DTOs
+@inject IRevenueAnalysisService RevenueAnalysisService
+@inject IMessageService MessageService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard - Tổng quan</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="dashboard-container">
+    <PageHeader Title="Dashboard" Subtitle="Tổng quan doanh thu và thống kê">
+        <PageHeaderExtra>
+            <Button Type="@ButtonType.Primary" 
+                    Icon="@IconType.Outline.Reload" 
+                    OnClick="LoadData"
+                    Loading="_loading">
+                Làm mới
+            </Button>
+        </PageHeaderExtra>
+    </PageHeader>
 
-Welcome to your new app.
+    <Spin Spinning="_loading">
+        <!-- Cards tổng quan -->
+        <Row Gutter="(16, 16)" Style="margin-bottom: 24px;">
+            <AntDesign.Col Span="6">
+                <Card>
+                    <Statistic Title="Doanh thu hôm nay"
+                              Value="_todayRevenue"
+                              Precision="0"
+                              Suffix="đ"
+                              ValueStyle="color: #3f8600" />
+                    <div style="color: #666; font-size: 12px; margin-top: 8px;">
+                        @_todayOrders đơn hàng
+                    </div>
+                </Card>
+            </AntDesign.Col>
+            <AntDesign.Col Span="6">
+                <Card>
+                    <Statistic Title="Doanh thu tuần này"
+                              Value="_weekRevenue"
+                              Precision="0"
+                              Suffix="đ"
+                              ValueStyle="color: #1890ff" />
+                    <div style="color: #666; font-size: 12px; margin-top: 8px;">
+                        @_weekOrders đơn hàng
+                    </div>
+                </Card>
+            </AntDesign.Col>
+            <AntDesign.Col Span="6">
+                <Card>
+                    <Statistic Title="Doanh thu tháng này"
+                              Value="_monthRevenue"
+                              Precision="0"
+                              Suffix="đ"
+                              ValueStyle="color: #722ed1" />
+                    <div style="color: #666; font-size: 12px; margin-top: 8px;">
+                        @_monthOrders đơn hàng
+                    </div>
+                </Card>
+            </AntDesign.Col>
+            <AntDesign.Col Span="6">
+                <Card>
+                    <Statistic Title="Đơn giá trung bình"
+                              Value="_averageOrderValue"
+                              Precision="0"
+                              Suffix="đ"
+                              ValueStyle="color: #eb2f96" />
+                    <div style="color: #666; font-size: 12px; margin-top: 8px;">
+                        Trung bình mỗi đơn
+                    </div>
+                </Card>
+            </AntDesign.Col>
+        </Row>
+
+        <!-- Biểu đồ doanh thu -->
+        <Row Gutter="(16, 16)" Style="margin-bottom: 24px;">
+            <AntDesign.Col Span="24">
+                <Card Title="Biểu đồ doanh thu theo ngày">
+                    @if (_revenueData?.Any() == true)
+                    {
+                        <div class="chart-container">
+                            @foreach (var item in _revenueData.Take(10))
+                            {
+                                var percentage = _totalRevenue > 0 ? (item.Revenue / _totalRevenue * 100) : 0;
+                                <div class="chart-bar-item">
+                                    <div class="chart-bar-label">
+                                        @item.Period
+                                    </div>
+                                    <div class="chart-bar-container">
+                                        <div class="chart-bar" style="width: @(percentage)%"></div>
+                                        <span class="chart-bar-value">@item.Revenue.ToString("N0") VND (@item.OrderCount đơn)</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <Empty Description="@("Không có dữ liệu doanh thu")" />
+                    }
+                </Card>
+            </AntDesign.Col>
+        </Row>
+
+        <!-- Top khách hàng -->
+        <Row Gutter="(16, 16)">
+            <AntDesign.Col Span="24">
+                <Card Title="Top khách hàng">
+                    @if (_topCustomers?.Any() == true)
+                    {
+                        <div class="customer-list">
+                            @for (int i = 0; i < _topCustomers.Count; i++)
+                            {
+                                var customer = _topCustomers[i];
+                                <div class="customer-item">
+                                    <div class="customer-index">@(i + 1)</div>
+                                    <div class="customer-info">
+                                        <div class="customer-name">
+                                            <Text Strong>@customer.CustomerName</Text>
+                                            @if (!string.IsNullOrEmpty(customer.UserId))
+                                            {
+                                                <Tag Color="@("blue")" Style="margin-left: 8px;">Thành viên</Tag>
+                                            }
+                                            else
+                                            {
+                                                <Tag Color="@("orange")" Style="margin-left: 8px;">Khách</Tag>
+                                            }
+                                        </div>
+                                        <div class="customer-contact">
+                                            @if (!string.IsNullOrEmpty(customer.Email))
+                                            {
+                                                <div><Icon Type="@IconType.Outline.Mail" /> @customer.Email</div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(customer.Phone))
+                                            {
+                                                <div><Icon Type="@IconType.Outline.Phone" /> @customer.Phone</div>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="customer-stats">
+                                        <div class="customer-spent">
+                                            <Text Strong Style="color: #f56a00;">@customer.TotalSpent.ToString("N0") VND</Text>
+                                        </div>
+                                        <div class="customer-orders">
+                                            <Badge Count="@customer.OrderCount" ShowZero Style="background-color: #52c41a;" />
+                                        </div>
+                                        <div class="customer-last-order">
+                                            @customer.LastOrderDate.ToString("dd/MM/yyyy")
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <Empty Description="@("Không có dữ liệu khách hàng")" />
+                    }
+                </Card>
+            </AntDesign.Col>
+        </Row>
+    </Spin>
+</div>
+
+<style>
+    .dashboard-container {
+        padding: 0;
+    }
+
+    .chart-container {
+        padding: 16px 0;
+    }
+
+    .chart-bar-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        padding: 8px 0;
+    }
+
+    .chart-bar-label {
+        width: 120px;
+        font-weight: 500;
+        color: #333;
+        flex-shrink: 0;
+    }
+
+    .chart-bar-container {
+        flex: 1;
+        position: relative;
+        height: 24px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-left: 16px;
+    }
+
+    .chart-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #1890ff, #40a9ff);
+        transition: width 0.3s ease;
+        min-width: 2px;
+    }
+
+    .chart-bar-value {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 12px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .customer-list {
+        margin-top: 16px;
+    }
+
+    .customer-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid #f0f0f0;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        background-color: #fafafa;
+    }
+
+    .customer-index {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #1890ff;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 16px;
+    }
+
+    .customer-info {
+        flex: 1;
+        margin-right: 16px;
+    }
+
+    .customer-name {
+        margin-bottom: 4px;
+    }
+
+    .customer-contact {
+        color: #666;
+        font-size: 12px;
+    }
+
+    .customer-contact div {
+        margin-bottom: 2px;
+    }
+
+    .customer-stats {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+    }
+
+    .customer-spent {
+        font-size: 16px;
+    }
+
+    .customer-last-order {
+        font-size: 12px;
+        color: #666;
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+    private double _todayRevenue = 0;
+    private int _todayOrders = 0;
+    private double _weekRevenue = 0;
+    private int _weekOrders = 0;
+    private double _monthRevenue = 0;
+    private int _monthOrders = 0;
+    private double _averageOrderValue = 0;
+    private double _totalRevenue = 0;
+    private List<RevenueByTimeDto>? _revenueData;
+    private List<TopCustomerDto>? _topCustomers;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var request = new RevenueFilterRequest
+            {
+                FromDate = DateTime.Today.AddDays(-30),
+                ToDate = DateTime.Today,
+                Period = "day",
+                TopCustomerCount = 10
+            };
+
+            var statistics = await RevenueAnalysisService.GetRevenueStatistics(request);
+            
+            if (statistics != null)
+            {
+                _averageOrderValue = statistics.AverageOrderValue;
+                _totalRevenue = statistics.TotalRevenue;
+                _revenueData = statistics.RevenueByTime;
+                _topCustomers = statistics.TopCustomers;
+            }
+
+            await LoadOverviewStats();
+            MessageService.Success("Dữ liệu đã được cập nhật");
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error("Lỗi khi tải dữ liệu: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadOverviewStats()
+    {
+        var today = DateTime.Today;
+        var startOfWeek = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
+        var startOfMonth = new DateTime(today.Year, today.Month, 1);
+
+        var todayRequest = new RevenueFilterRequest
+        {
+            FromDate = today,
+            ToDate = today.AddDays(1),
+            Period = "day"
+        };
+        var todayStats = await RevenueAnalysisService.GetRevenueStatistics(todayRequest);
+        _todayRevenue = todayStats.TotalRevenue;
+        _todayOrders = todayStats.TotalOrders;
+
+        var weekRequest = new RevenueFilterRequest
+        {
+            FromDate = startOfWeek,
+            ToDate = today.AddDays(1),
+            Period = "week"
+        };
+        var weekStats = await RevenueAnalysisService.GetRevenueStatistics(weekRequest);
+        _weekRevenue = weekStats.TotalRevenue;
+        _weekOrders = weekStats.TotalOrders;
+
+        var monthRequest = new RevenueFilterRequest
+        {
+            FromDate = startOfMonth,
+            ToDate = today.AddDays(1),
+            Period = "month"
+        };
+        var monthStats = await RevenueAnalysisService.GetRevenueStatistics(monthRequest);
+        _monthRevenue = monthStats.TotalRevenue;
+        _monthOrders = monthStats.TotalOrders;
+    }
+} 

@@ -136,10 +136,22 @@ public class AccountService : IAccountService
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+        
+        // Map users to DTOs outside of using block
         var userDtos = new List<UserDto>();
         foreach (var user in users)
         {
-            userDtos.Add(await MapToUserDtoAsync(user));
+            userDtos.Add(new UserDto
+            {
+                Id = user.Id,
+                Email = user.Email!,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                FullName = user.FullName,
+                Address = user.Address,
+                IsLocked = user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                LockoutEnd = user.LockoutEnd?.UtcDateTime,
+                Roles = new List<string>() // We'll load roles separately if needed
+            });
         }
         return new PaginatedList<UserDto>(userDtos, pageIndex, pageSize, totalItems);
     }
