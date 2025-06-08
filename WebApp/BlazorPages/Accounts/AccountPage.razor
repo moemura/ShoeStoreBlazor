@@ -1,0 +1,226 @@
+﻿@page "/account"
+@using Microsoft.AspNetCore.Components.Authorization
+@using WebApp.Services.Auth
+@using WebApp.Models.DTOs
+@inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IMessageService Message
+@inject ILogger<AccountPage> Logger
+
+<PageTitle>Quản lý tài khoản</PageTitle>
+
+<div style="padding: 24px;">
+    <Title Level="2">
+        <Icon Type="@IconType.Outline.User" />
+        Quản lý tài khoản
+    </Title>
+
+    <Tabs DefaultActiveKey="1" TabPosition="TabPosition.Top">
+        <TabPane Key="1" Tab="Thông tin cá nhân">
+            <div style="max-width: 600px; margin-top: 24px;">
+                <Spin Spinning="_loadingProfile">
+                    <Form Model="_profileModel" OnFinish="HandleUpdateProfile" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+                        <FormItem Label="Email">
+                            <Input @bind-Value="_profileModel.Email" Disabled="true" />
+                        </FormItem>
+                        
+                        <FormItem Label="Họ và tên" Required>
+                            <Input @bind-Value="_profileModel.FullName" Placeholder="Nhập họ và tên" />
+                        </FormItem>
+                        
+                        <FormItem Label="Số điện thoại">
+                            <Input @bind-Value="_profileModel.PhoneNumber" Placeholder="Nhập số điện thoại" />
+                        </FormItem>
+                        
+                        <FormItem Label="Địa chỉ">
+                            <TextArea @bind-Value="_profileModel.Address" Placeholder="Nhập địa chỉ" Rows="3" />
+                        </FormItem>
+                        
+                        <FormItem WrapperCol="new ColLayoutParam { Offset = 6, Span = 18 }">
+                            <Button Type="@ButtonType.Primary" HtmlType="submit" Loading="_updating">
+                                <Icon Type="@IconType.Outline.Save" />
+                                Cập nhật thông tin
+                            </Button>
+                        </FormItem>
+                    </Form>
+                </Spin>
+            </div>
+        </TabPane>
+
+        <TabPane Key="2" Tab="Đổi mật khẩu">
+            <div style="max-width: 600px; margin-top: 24px;">
+                <Form Model="_passwordModel" OnFinish="HandleChangePassword" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+                    <FormItem Label="Mật khẩu hiện tại" Required>
+                        <InputPassword @bind-Value="_passwordModel.CurrentPassword" Placeholder="Nhập mật khẩu hiện tại" />
+                    </FormItem>
+                    
+                    <FormItem Label="Mật khẩu mới" Required>
+                        <InputPassword @bind-Value="_passwordModel.NewPassword" Placeholder="Nhập mật khẩu mới" />
+                    </FormItem>
+                    
+                    <FormItem Label="Xác nhận mật khẩu" Required>
+                        <InputPassword @bind-Value="_passwordModel.ConfirmPassword" Placeholder="Xác nhận mật khẩu mới" />
+                    </FormItem>
+                    
+                    <FormItem WrapperCol="new ColLayoutParam { Offset = 6, Span = 18 }">
+                        <Button Type="@ButtonType.Primary" HtmlType="submit" Loading="_changingPassword">
+                            <Icon Type="@IconType.Outline.Lock" />
+                            Đổi mật khẩu
+                        </Button>
+                    </FormItem>
+                </Form>
+            </div>
+        </TabPane>
+    </Tabs>
+</div>
+
+@code {
+    private UpdateProfileDto _profileModel = new();
+    private ChangePasswordModel _passwordModel = new();
+    private bool _loadingProfile = false;
+    private bool _updating = false;
+    private bool _changingPassword = false;
+    private string _currentUserId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserProfile();
+    }
+
+    private async Task LoadUserProfile()
+    {
+        try
+        {
+            _loadingProfile = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            _currentUserId = authState.User.FindFirst("sub")?.Value ?? 
+                           authState.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value ?? 
+                           string.Empty;
+
+            if (string.IsNullOrEmpty(_currentUserId))
+            {
+                Message.Error("Không thể xác định người dùng");
+                return;
+            }
+
+            var result = await AccountService.GetProfileAsync(_currentUserId);
+            if (result.Success && result.User != null)
+            {
+                _profileModel = new UpdateProfileDto
+                {
+                    Email = result.User.Email,
+                    FullName = result.User.FullName,
+                    PhoneNumber = result.User.PhoneNumber,
+                    Address = result.User.Address
+                };
+            }
+            else
+            {
+                Message.Error(result.Message ?? "Không thể tải thông tin người dùng");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading user profile");
+            Message.Error("Có lỗi xảy ra khi tải thông tin người dùng");
+        }
+        finally
+        {
+            _loadingProfile = false;
+        }
+    }
+
+    private async Task HandleUpdateProfile()
+    {
+        try
+        {
+            _updating = true;
+            
+            if (string.IsNullOrWhiteSpace(_profileModel.FullName))
+            {
+                Message.Warning("Vui lòng nhập họ và tên");
+                return;
+            }
+
+            var result = await AccountService.UpdateProfileAsync(_currentUserId, _profileModel);
+            if (result.Success)
+            {
+                Message.Success("Cập nhật thông tin thành công");
+            }
+            else
+            {
+                Message.Error(result.Message ?? "Cập nhật thông tin thất bại");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating profile");
+            Message.Error("Có lỗi xảy ra khi cập nhật thông tin");
+        }
+        finally
+        {
+            _updating = false;
+        }
+    }
+
+    private async Task HandleChangePassword()
+    {
+        try
+        {
+            _changingPassword = true;
+
+            if (string.IsNullOrWhiteSpace(_passwordModel.CurrentPassword) ||
+                string.IsNullOrWhiteSpace(_passwordModel.NewPassword) ||
+                string.IsNullOrWhiteSpace(_passwordModel.ConfirmPassword))
+            {
+                Message.Warning("Vui lòng điền đầy đủ thông tin");
+                return;
+            }
+
+            if (_passwordModel.NewPassword != _passwordModel.ConfirmPassword)
+            {
+                Message.Warning("Mật khẩu xác nhận không khớp");
+                return;
+            }
+
+            if (_passwordModel.NewPassword.Length < 6)
+            {
+                Message.Warning("Mật khẩu mới phải có ít nhất 6 ký tự");
+                return;
+            }
+
+            var changePasswordDto = new ChangePasswordDto
+            {
+                CurrentPassword = _passwordModel.CurrentPassword,
+                NewPassword = _passwordModel.NewPassword
+            };
+
+            var result = await AccountService.ChangePasswordAsync(_currentUserId, changePasswordDto);
+            if (result.Success)
+            {
+                Message.Success("Đổi mật khẩu thành công");
+                _passwordModel = new ChangePasswordModel(); // Reset form
+            }
+            else
+            {
+                Message.Error(result.Message ?? "Đổi mật khẩu thất bại");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error changing password");
+            Message.Error("Có lỗi xảy ra khi đổi mật khẩu");
+        }
+        finally
+        {
+            _changingPassword = false;
+        }
+    }
+
+    private class ChangePasswordModel
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

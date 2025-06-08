@@ -42,7 +42,7 @@ public class OrderController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         await _orderService.CancelOrder(id, userId);
-        return Ok();
+        return NoContent();
     }
 
     [HttpGet("sync")]

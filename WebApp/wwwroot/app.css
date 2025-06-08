@@ -1,3 +1,105 @@
+/* AntDesign Primary Color Override */
+:root {
+    --ant-primary-color: #0082c8;
+    --ant-primary-color-hover: #3d9dd8;
+    --ant-primary-color-active: #006ba6;
+    --ant-primary-color-outline: rgba(0, 130, 200, 0.2);
+    --ant-primary-1: #e6f4ff;
+    --ant-primary-2: #bae0ff;
+    --ant-primary-3: #91caff;
+    --ant-primary-4: #69b1ff;
+    --ant-primary-5: #4096ff;
+    --ant-primary-6: #0082c8;
+    --ant-primary-7: #006ba6;
+    --ant-primary-8: #0958d9;
+    --ant-primary-9: #003eb3;
+    --ant-primary-10: #002c8c;
+}
+
+/* Override AntDesign Button Primary */
+.ant-btn-primary {
+    background-color: #0082c8 !important;
+    border-color: #0082c8 !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+    background-color: #3d9dd8 !important;
+    border-color: #3d9dd8 !important;
+}
+
+.ant-btn-primary:active {
+    background-color: #006ba6 !important;
+    border-color: #006ba6 !important;
+}
+
+/* Override AntDesign Menu Active Item */
+.ant-menu-item-selected {
+    background-color: rgba(0, 130, 200, 0.1) !important;
+    border-right-color: #0082c8 !important;
+}
+
+.ant-menu-item-selected a {
+    color: #0082c8 !important;
+}
+
+/* Override AntDesign Link Color */
+.ant-typography a {
+    color: #0082c8 !important;
+}
+
+.ant-typography a:hover {
+    color: #3d9dd8 !important;
+}
+
+/* Override AntDesign Switch */
+.ant-switch-checked {
+    background-color: #0082c8 !important;
+}
+
+/* Override AntDesign Checkbox */
+.ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #0082c8 !important;
+    border-color: #0082c8 !important;
+}
+
+/* Override AntDesign Radio */
+.ant-radio-checked .ant-radio-inner {
+    border-color: #0082c8 !important;
+}
+
+.ant-radio-checked .ant-radio-inner::after {
+    background-color: #0082c8 !important;
+}
+
+/* Override AntDesign Input Focus */
+.ant-input:focus,
+.ant-input-focused {
+    border-color: #0082c8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 130, 200, 0.2) !important;
+}
+
+/* Override AntDesign Select */
+.ant-select-focused .ant-select-selector {
+    border-color: #0082c8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 130, 200, 0.2) !important;
+}
+
+/* Override AntDesign Table */
+.ant-table-thead > tr > th {
+    background-color: rgba(0, 130, 200, 0.02) !important;
+}
+
+/* Override AntDesign Pagination */
+.ant-pagination-item-active {
+    background-color: #0082c8 !important;
+    border-color: #0082c8 !important;
+}
+
+.ant-pagination-item-active a {
+    color: #fff !important;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }

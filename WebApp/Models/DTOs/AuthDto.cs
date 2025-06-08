@@ -50,9 +50,9 @@ public class ChangePasswordDto
 
 public class UpdateProfileDto
 {
-    [Required(ErrorMessage = "Phone number is required")]
-    [Phone(ErrorMessage = "Invalid phone number format")]
-    public string PhoneNumber { get; set; } = null!;
+    public string? Email { get; set; }
+    
+    public string? PhoneNumber { get; set; }
 
     public string? FullName { get; set; }
     public string? Address { get; set; }

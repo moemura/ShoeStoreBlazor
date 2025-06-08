@@ -96,3 +96,198 @@ Chức năng quản lý đơn hàng cho admin web, cho phép xem, lọc, cập n
 - **Security**: Authorization policy đảm bảo chỉ admin mới truy cập
 - **UX**: Luôn hiển thị loading states và success/error messages
 - **Data Integrity**: Validate trạng thái trước khi cập nhật 
+
+## Tính năng UX mới được tối ưu
+
+### 1. Nút Reload
+- **Vị trí**: Thanh công cụ chính
+- **Tính năng**: Tải lại dữ liệu ngay lập tức với loading indicator
+- **UX**: Feedback thành công "Đã tải lại dữ liệu!" sau khi hoàn thành
+
+### 2. Responsive Filter Design
+- **Desktop (>991px)**: Hiển thị filter inline trực tiếp trên page
+- **Tablet/Mobile (≤991px)**: Ẩn filter inline, hiển thị nút "Lọc" mở modal
+- **Tự động responsive**: Không cần cấu hình thêm
+
+#### Filter Inline (Desktop)
+- Card với background nhẹ (#fafafa)
+- 4 cột filter: Trạng thái, Phương thức TT, Khoảng thời gian, Khoảng giá
+- Real-time filtering với debounce 300ms
+- Hover effect với shadow
+
+#### Filter Modal (Mobile)
+- Modal popup với form layout truyền thống
+- Đầy đủ các options như desktop
+- Tối ưu cho touch interface
+
+### 3. Date Range Filter với UX tốt hơn
+- **Inline position**: Hiển thị ngay trong hàng filter (desktop)
+- **Smart placeholder**: Hiển thị tuần hiện tại thay vì "01-01-0001"
+  - Từ: Thứ 2 tuần hiện tại
+  - Đến: Ngày hiện tại
+- **DefaultPickerValue**: Picker mở ở tháng hiện tại (giải quyết vấn đề năm 0001)
+- **Quick Date Buttons**: Nút nhanh cho các khoảng thời gian phổ biến
+  - Desktop: Hôm nay, 7 ngày, Tháng này
+  - Modal: Hôm nay, 7 ngày qua, 30 ngày qua, Tháng này, Tháng trước
+- **Format**: dd/MM/yyyy (phù hợp với người Việt)
+- **Real-time**: Tự động filter khi chọn ngày
+
+## Responsive Breakpoints
+
+```css
+/* Desktop: >= 992px */
+- Hiển thị filter inline
+- Ẩn nút "Lọc" modal
+- Hiển thị text đầy đủ cho buttons
+
+/* Tablet: 576px - 991px */  
+- Ẩn filter inline
+- Hiển thị nút "Lọc" modal
+- Rút gọn text buttons
+
+/* Mobile: <= 575px */
+- Layout stack vertical
+- Ẩn text buttons, chỉ hiển thị icon
+- Center align controls
+```
+
+## Các thành phần UI
+
+### Search & Controls Row
+```razor
+<Row Gutter="16">
+  <Col Xs="24" Sm="12" Md="8" Lg="6">
+    <!-- Search Input với icon -->
+  </Col>
+  <Col Xs="24" Sm="12" Md="8" Lg="6">
+    <!-- Reload, Filter Modal, Clear buttons -->
+  </Col>
+  <Col Xs="24" Sm="12" Md="8" Lg="6">
+    <!-- Page size selector -->
+  </Col>
+</Row>
+```
+
+### Desktop Filter Card
+```razor
+<Card Class="filter-card desktop-filters">
+  <Row Gutter="16">
+    <Col Span="6">Status Select</Col>
+    <Col Span="6">Payment Method Select</Col>
+    <Col Span="6">Date Range Picker</Col>
+    <Col Span="6">Price Range Input</Col>
+  </Row>
+</Card>
+```
+
+## JavaScript/CSS Features
+
+### Animations
+- Button hover transform: `translateY(-1px)`
+- Card hover shadow effect
+- Smooth transitions: `all 0.3s ease`
+
+### Responsive Classes
+- `.hidden-xs`: Ẩn trên mobile
+- `.desktop-filters`: Chỉ hiện desktop
+- `.filter-modal-btn`: Chỉ hiện mobile
+- `.d-flex`, `.justify-content-end`: Flex utilities
+
+## Performance Optimizations
+
+### Debouncing
+- Filter changes debounce 300ms
+- Giảm số lần gọi API khi user typing
+
+### Smart Loading
+- Loading state cho reload button
+- Loading state cho table khi filtering
+
+### Memory Management
+- Clear filter states properly
+- Dispose event handlers
+
+## Event Handlers
+
+### Filter Events
+```csharp
+// Select changes
+OnSelectedItemChanged="@(async (OrderStatus? value) => await OnInlineFilterChange())"
+
+// Date range changes  
+OnChange="@(async (DateRangeChangedEventArgs<DateTime[]> args) => await OnInlineFilterChange())"
+
+// Number input changes
+OnChange="@(async (double? value) => await OnInlineFilterChange())"
+```
+
+### Date Placeholder & Default Value Logic
+```csharp
+private string[] GetDatePlaceholder()
+{
+    var today = DateTime.Now;
+    var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+    return new[] { 
+        startOfWeek.ToString("dd/MM/yyyy"), 
+        today.ToString("dd/MM/yyyy") 
+    };
+}
+
+private DateTime[] GetDefaultPickerValue()
+{
+    var today = DateTime.Now;
+    return new[] { today.AddDays(-7), today }; // Picker mở ở tháng hiện tại
+}
+```
+
+### Quick Date Selection
+```csharp
+// Inline filter quick selection
+private async Task SetDateRange(DateTime[] range)
+{
+    _inlineFilterModel.DateRange = range;
+    await OnInlineFilterChange();
+}
+
+// Modal filter quick selection  
+private void SetModalDateRange(DateTime[] range)
+{
+    _filterModel.DateRange = range;
+}
+```
+
+## Accessibility Features
+
+### Keyboard Navigation
+- Tab order tối ưu
+- Enter/Space support trên buttons
+- Arrow keys trong dropdowns
+
+### Screen Reader
+- Semantic HTML structure
+- Proper ARIA labels
+- Descriptive button text
+
+### Touch Friendly
+- 44px minimum touch targets
+- Adequate spacing between elements
+- Swipe gestures support
+
+## Browser Support
+- Chrome/Edge: Full support
+- Firefox: Full support  
+- Safari: Full support
+- Mobile browsers: Optimized
+
+## Future Enhancements
+1. Save filter preferences to localStorage
+2. Quick filter presets (Today, This week, This month)
+3. Advanced search with multiple criteria
+4. Export filtered results
+5. Bulk actions on filtered items
+
+## Notes
+- CSS sử dụng `@@media` syntax cho Blazor
+- Event handlers có proper async/await
+- All filters clear together với single action
+- Maintains existing functionality while improving UX 

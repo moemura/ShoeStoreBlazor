@@ -6,14 +6,14 @@ namespace WebApp.Services.Orders;
 
 public class OrderService : IOrderService
 {
-    private readonly ShoeStoreDbContext _dbContext;
+    private readonly IDbContextFactory<ShoeStoreDbContext> _dbContextFactory;
     private readonly ICartService _cartService;
     private readonly IProductService _productService;
     private readonly OrderTotalStrategyFactory _orderTotalStrategyFactory;
 
-    public OrderService(ShoeStoreDbContext dbContext, ICartService cartService, IProductService productService, OrderTotalStrategyFactory orderTotalStrategyFactory)
+    public OrderService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICartService cartService, IProductService productService, OrderTotalStrategyFactory orderTotalStrategyFactory)
     {
-        _dbContext = dbContext;
+        _dbContextFactory = dbContextFactory;
         _cartService = cartService;
         _productService = productService;
         _orderTotalStrategyFactory = orderTotalStrategyFactory;
@@ -21,6 +21,8 @@ public class OrderService : IOrderService
 
     public async Task<OrderDto> CreateOrder(OrderCreateRequest req, string? userId, string? guestId)
     {
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        
         // 1. Kiểm tra tồn kho từng item
         var orderItems = new List<OrderItem>();
         foreach (var item in req.Items)
@@ -50,14 +52,14 @@ public class OrderService : IOrderService
         // 4. Trừ kho
         foreach (var item in orderItems)
         {
-            var inventory = _dbContext.Inventories.First(i => i.Id == item.InventoryId);
+            var inventory = dbContext.Inventories.First(i => i.Id == item.InventoryId);
             if (inventory.Quantity < item.Quantity)
                 throw new Exception($"Sản phẩm inventoryId {item.InventoryId} không đủ tồn kho");
             inventory.Quantity -= item.Quantity;
         }
         // 5. Lưu DB
-        _dbContext.Orders.Add(order);
-        await _dbContext.SaveChangesAsync();
+        dbContext.Orders.Add(order);
+        await dbContext.SaveChangesAsync();
         // 6. Gọi payment strategy
         var paymentStrategy = PaymentStrategyFactory.GetStrategy((int)order.PaymentMethod);
         await paymentStrategy.ProcessPayment(order.ToDto());
@@ -75,7 +77,8 @@ public class OrderService : IOrderService
     }
     public async Task<IEnumerable<OrderDto>> GetOrdersByUser(string userId)
     {
-        var orders = await _dbContext.Orders
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var orders = await dbContext.Orders
             .Include(o => o.Items)
             .ThenInclude(i => i.Inventory)
             .ThenInclude(inv => inv.Product)
@@ -84,9 +87,11 @@ public class OrderService : IOrderService
             .ToListAsync();
         return orders.Select(o => o.ToDto());
     }
+    
     public async Task<OrderDto> GetOrderById(Guid orderId)
     {
-        var order = await _dbContext.Orders
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var order = await dbContext.Orders
             .Include(o => o.Items)
             .ThenInclude(i => i.Inventory)
             .ThenInclude(inv => inv.Product)
@@ -94,18 +99,21 @@ public class OrderService : IOrderService
         if (order == null) throw new Exception("Order not found");
         return order.ToDto();
     }
+    
     public async Task UpdateOrderStatus(Guid orderId, int status, string? note = null)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
         if (order == null) throw new Exception("Order not found");
         order.Status = (OrderStatus)status;
         if (!string.IsNullOrEmpty(note)) order.Note = note;
         order.UpdatedAt = DateTime.UtcNow;
-        await _dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
     }
     public async Task CancelOrder(Guid orderId, string userId)
     {
-        var order = await _dbContext.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var order = await dbContext.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
         if (order == null) throw new Exception("Order not found or not allowed");
         if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Completed)
             throw new Exception("Order cannot be cancelled");
@@ -114,18 +122,95 @@ public class OrderService : IOrderService
         // Hoàn lại tồn kho
         foreach (var item in order.Items)
         {
-            var inventory = await _dbContext.Inventories.FirstOrDefaultAsync(i => i.Id == item.InventoryId);
+            var inventory = await dbContext.Inventories.FirstOrDefaultAsync(i => i.Id == item.InventoryId);
             if (inventory != null)
                 inventory.Quantity += item.Quantity;
         }
-        await _dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
+        // Xóa cache sản phẩm
+        if (_productService is ProductService ps)
+            await ps.RemoveProductCache();
+    }
+
+    public async Task RejectOrder(Guid orderId, string userId)
+    {
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var order = await dbContext.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+        if (order == null) throw new Exception("Order not found or not allowed");
+        if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Completed)
+            throw new Exception("Order cannot be cancelled");
+        order.Status = OrderStatus.Rejected;
+        order.UpdatedAt = DateTime.UtcNow;
+        // Hoàn lại tồn kho
+        foreach (var item in order.Items)
+        {
+            var inventory = await dbContext.Inventories.FirstOrDefaultAsync(i => i.Id == item.InventoryId);
+            if (inventory != null)
+                inventory.Quantity += item.Quantity;
+        }
+        await dbContext.SaveChangesAsync();
+        // Xóa cache sản phẩm
+        if (_productService is ProductService ps)
+            await ps.RemoveProductCache();
+    }
+
+    public async Task AdminCancelOrder(Guid orderId, string? note = null)
+    {
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var order = await dbContext.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order == null) throw new Exception("Order not found");
+        if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Completed)
+            throw new Exception("Order cannot be cancelled");
+        
+        order.Status = OrderStatus.Cancelled;
+        order.Note = note ?? "Hủy bởi admin";
+        order.UpdatedAt = DateTime.UtcNow;
+        
+        // Hoàn lại tồn kho
+        foreach (var item in order.Items)
+        {
+            var inventory = await dbContext.Inventories.FirstOrDefaultAsync(i => i.Id == item.InventoryId);
+            if (inventory != null)
+                inventory.Quantity += item.Quantity;
+        }
+        
+        await dbContext.SaveChangesAsync();
+        
+        // Xóa cache sản phẩm
+        if (_productService is ProductService ps)
+            await ps.RemoveProductCache();
+    }
+
+    public async Task AdminRejectOrder(Guid orderId, string? note = null)
+    {
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var order = await dbContext.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order == null) throw new Exception("Order not found");
+        if (order.Status == OrderStatus.Cancelled || order.Status == OrderStatus.Completed)
+            throw new Exception("Order cannot be rejected");
+        
+        order.Status = OrderStatus.Rejected;
+        order.Note = note ?? "Từ chối bởi admin";
+        order.UpdatedAt = DateTime.UtcNow;
+        
+        // Hoàn lại tồn kho
+        foreach (var item in order.Items)
+        {
+            var inventory = await dbContext.Inventories.FirstOrDefaultAsync(i => i.Id == item.InventoryId);
+            if (inventory != null)
+                inventory.Quantity += item.Quantity;
+        }
+        
+        await dbContext.SaveChangesAsync();
+        
         // Xóa cache sản phẩm
         if (_productService is ProductService ps)
             await ps.RemoveProductCache();
     }
     public async Task<PaginatedList<OrderDto>> FilterAndPaging(int pageIndex, int pageSize, Dictionary<string, string> filter)
     {
-        var query = _dbContext.Orders
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var query = dbContext.Orders
             .Include(o => o.Items)
             .ThenInclude(i => i.Inventory)
             .ThenInclude(inv => inv.Product)
@@ -134,10 +219,41 @@ public class OrderService : IOrderService
             query = query.Where(o => o.Status == status);
         if (filter.TryGetValue("userId", out var userId) && !string.IsNullOrWhiteSpace(userId))
             query = query.Where(o => o.UserId == userId);
+        // Search by phone OR name (not both)
         if (filter.TryGetValue("phone", out var phone) && !string.IsNullOrWhiteSpace(phone))
-            query = query.Where(o => o.Phone.Contains(phone));
-        if (filter.TryGetValue("name", out var name) && !string.IsNullOrWhiteSpace(name))
-            query = query.Where(o => o.CustomerName.Contains(name));
+        {
+            if (filter.TryGetValue("name", out var name) && !string.IsNullOrWhiteSpace(name) && phone == name)
+            {
+                // If phone and name have same value, search in both fields (OR condition)
+                query = query.Where(o => o.Phone.Contains(phone) || o.CustomerName.Contains(name));
+            }
+            else
+            {
+                // Search by phone only
+                query = query.Where(o => o.Phone.Contains(phone));
+            }
+        }
+        else if (filter.TryGetValue("name", out var customerName) && !string.IsNullOrWhiteSpace(customerName))
+        {
+            // Search by name only
+            query = query.Where(o => o.CustomerName.Contains(customerName));
+        }
+        // Filter by payment method
+        if (filter.TryGetValue("paymentMethod", out var paymentMethodStr) && Enum.TryParse<PaymentMethod>(paymentMethodStr, out var paymentMethod))
+            query = query.Where(o => o.PaymentMethod == paymentMethod);
+        
+        // Filter by date range
+        if (filter.TryGetValue("startDate", out var startDateStr) && DateTime.TryParse(startDateStr, out var startDate))
+            query = query.Where(o => o.CreatedAt >= startDate);
+        if (filter.TryGetValue("endDate", out var endDateStr) && DateTime.TryParse(endDateStr, out var endDate))
+            query = query.Where(o => o.CreatedAt <= endDate.AddDays(1)); // Include end date
+        
+        // Filter by amount range
+        if (filter.TryGetValue("minAmount", out var minAmountStr) && double.TryParse(minAmountStr, out var minAmount))
+            query = query.Where(o => o.TotalAmount >= minAmount);
+        if (filter.TryGetValue("maxAmount", out var maxAmountStr) && double.TryParse(maxAmountStr, out var maxAmount))
+            query = query.Where(o => o.TotalAmount <= maxAmount);
+        
         var totalItems = await query.CountAsync();
         var orders = await query.OrderByDescending(o => o.CreatedAt)
             .Skip((pageIndex - 1) * pageSize)
@@ -155,9 +271,11 @@ public class OrderService : IOrderService
             HasPrevious = pageIndex > 1
         };
     }
+    
     public async Task SyncGuestOrdersToUser(string guestId, string userId)
     {
-        var guestOrders = await _dbContext.Orders
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var guestOrders = await dbContext.Orders
             .Where(o => o.UserId == null && o.GuestId == guestId)
             .ToListAsync();
         foreach (var order in guestOrders)
@@ -166,6 +284,6 @@ public class OrderService : IOrderService
             order.Note = null;
             order.UpdatedAt = DateTime.UtcNow;
         }
-        await _dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
     }
 }

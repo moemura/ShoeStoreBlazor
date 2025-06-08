@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.razor
 alwaysApply: false
 ---
 # Blazor Rules (Optimized)

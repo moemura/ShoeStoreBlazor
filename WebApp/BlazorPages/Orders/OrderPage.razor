@@ -21,43 +21,157 @@
 
 <br />
 
-<Space>
-    <SpaceItem>
-        <Input @bind-Value="@_searchText"
-               Placeholder="Tìm theo SĐT, tên khách hàng..."
-               Style="width: 250px"
-               OnChange="@(async (string value) => await OnSearch(value))" />
-    </SpaceItem>
-    <SpaceItem>
-        <Button Type="@ButtonType.Default" OnClick="ShowFilterModal">
-            <Icon Type="filter" Theme="IconThemeType.Outline" />
-            Lọc
-        </Button>
-    </SpaceItem>
-    <SpaceItem>
-        @if (_currentFilter.Any())
-        {
-            <Button Type="@ButtonType.Default" OnClick="ClearFilters">
-                <Icon Type="clear" Theme="IconThemeType.Outline" />
-                Xóa bộ lọc
-            </Button>
-        }
-    </SpaceItem>
-    <SpaceItem>
-        <Select TItem="int"
-                TItemValue="int"
-                Style="width: 120px"
-                @bind-Value="@pageSize"
-                OnChange="@(async (int value) => await OnPageSizeChange(value))">
-            <SelectOptions>
-                <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
-                <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
-                <SelectOption TItem="int" TItemValue="int" Value="20" Label="20 / trang" />
-                <SelectOption TItem="int" TItemValue="int" Value="50" Label="50 / trang" />
-            </SelectOptions>
-        </Select>
-    </SpaceItem>
-</Space>
+<!-- Search and Controls Row -->
+<Row Gutter="16" Style="margin-bottom: 16px;" Class="search-controls-row">
+    <Col Xs="24" Sm="14" Md="16" Lg="18">
+        <Space Style="width: 100%;">
+            <SpaceItem>
+                <Input @bind-Value="@_searchText"
+                       Placeholder="Tìm theo SĐT, tên khách hàng..."
+                       OnChange="@(async (string value) => await OnSearch(value))"
+                       Style="width: 300px;">
+                    <Suffix>
+                        <Icon Type="search" />
+                    </Suffix>
+                </Input>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="ShowFilterModal" Class="filter-modal-btn">
+                    <Icon Type="filter" />
+                    <span class="hidden-xs">Lọc</span>
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                @if (HasActiveFilters())
+                {
+                    <Button Type="@ButtonType.Default" OnClick="ClearFilters">
+                        <Icon Type="clear" />
+                        <span class="hidden-xs">Xóa lọc</span>
+                    </Button>
+                }
+            </SpaceItem>
+        </Space>
+    </Col>
+    
+    <Col Xs="24" Sm="10" Md="8" Lg="6" Class="d-flex justify-content-end">
+        <Space Style="width: 100%;" Class="controls-right">
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@ReloadData" Loading="_loading">
+                    <Icon Type="reload" />
+                    <span class="hidden-xs">Tải lại</span>
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Select TItem="int"
+                        TItemValue="int"
+                        Style="width: 120px"
+
+                        @bind-Value="@pageSize"
+                        OnChange="@(async (int value) => await OnPageSizeChange(value))">
+                    <SelectOptions>
+                        <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
+                        <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
+                        <SelectOption TItem="int" TItemValue="int" Value="20" Label="20 / trang" />
+                        <SelectOption TItem="int" TItemValue="int" Value="50" Label="50 / trang" />
+                    </SelectOptions>
+                </Select>
+            </SpaceItem>
+        </Space>
+    </Col>
+</Row>
+
+<!-- Inline Filters (Desktop) -->
+<Card Class="desktop-filters" Style="margin-bottom: 16px;">
+    <Row Gutter="16">
+        <Col Span="6">
+            <Text Strong>Trạng thái:</Text>
+            <Select TItem="OrderStatus?"
+                    TItemValue="OrderStatus?"
+                    @bind-Value="@_inlineFilterModel.Status"
+                    Placeholder="Tất cả trạng thái"
+                    AllowClear="true"
+                    Style="width: 100%; margin-top: 4px;"
+                    OnSelectedItemChanged="@(async (OrderStatus? value) => await OnInlineFilterChange())">
+                <SelectOptions>
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Pending" Label="Chờ xử lý" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Prepairing" Label="Đang chuẩn bị" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Shipping" Label="Đang giao" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Completed" Label="Hoàn thành" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Cancelled" Label="Đã hủy" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Rejected" Label="Từ chối" />
+                </SelectOptions>
+            </Select>
+        </Col>
+        
+        <Col Span="6">
+            <Text Strong>Phương thức TT:</Text>
+            <Select TItem="PaymentMethod?"
+                    TItemValue="PaymentMethod?"
+                    @bind-Value="@_inlineFilterModel.PaymentMethod"
+                    Placeholder="Tất cả phương thức"
+                    AllowClear="true"
+                    Style="width: 100%; margin-top: 4px;"
+                    OnSelectedItemChanged="@(async (PaymentMethod? value) => await OnInlineFilterChange())">
+                <SelectOptions>
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.COD" Label="COD" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.BankTranfer" Label="Chuyển khoản" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.CreditCard" Label="Thẻ tín dụng" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.MoMo" Label="MoMo" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.VnPay" Label="VnPay" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.ZaloPay" Label="ZaloPay" />
+                    <SelectOption TItem="PaymentMethod?" TItemValue="PaymentMethod?" Value="PaymentMethod.PayPal" Label="PayPal" />
+                </SelectOptions>
+            </Select>
+        </Col>
+        
+        <Col Span="6">
+            <Text Strong>Khoảng thời gian:</Text>
+            <div style="margin-top: 4px;">
+                <RangePicker @bind-Value="@_inlineFilterModel.DateRange" 
+                            Format="dd/MM/yyyy"
+                            Placeholder="@GetDatePlaceholder()"
+                            DefaultPickerValue="@GetDefaultPickerValue()"
+                            Style="width: 100%;"
+                            OnChange="@(async (DateRangeChangedEventArgs<DateTime[]> args) => await OnInlineFilterChange())" />
+                
+                <!-- Quick Date Buttons -->
+                <div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">
+                    <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetDateRange(GetTodayRange()))">
+                        Hôm nay
+                    </Button>
+                    <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetDateRange(GetLast7DaysRange()))">
+                        7 ngày
+                    </Button>
+                    <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetDateRange(GetThisMonthRange()))">
+                        Tháng này
+                    </Button>
+                </div>
+            </div>
+        </Col>
+        
+        <Col Span="6">
+            <Text Strong>Khoảng giá:</Text>
+            <div style="margin-top: 4px;">
+                <Row Gutter="8">
+                    <Col Span="12">
+                        <AntDesign.InputNumber @bind-Value="@_inlineFilterModel.MinAmount" 
+                                              Placeholder="Từ" 
+                                              Min="0" 
+                                              Style="width: 100%"
+                                              OnChange="@(async (double? value) => await OnInlineFilterChange())" />
+                    </Col>
+                    <Col Span="12">
+                        <AntDesign.InputNumber @bind-Value="@_inlineFilterModel.MaxAmount" 
+                                              Placeholder="Đến" 
+                                              Min="0" 
+                                              Style="width: 100%"
+                                              OnChange="@(async (double? value) => await OnInlineFilterChange())" />
+                    </Col>
+                </Row>
+            </div>
+        </Col>
+    </Row>
+</Card>
 
 <p />
 
@@ -110,14 +224,25 @@
             @if (context.Status == OrderStatus.Pending || context.Status == OrderStatus.Prepairing)
             {
                 <SpaceItem>
-                    <Popconfirm Title="Xác nhận hủy đơn hàng?"
-                                OkText="Có"
-                                CancelText="Không"
-                                OnConfirm="() => OnCancelOrder(context.Id)">
-                        <Button Danger Size="@ButtonSize.Small">
-                            <Icon Type="close" />
-                        </Button>
-                    </Popconfirm>
+                    <Dropdown>
+                        <ChildContent>
+                            <Button Type="@ButtonType.Default" Size="@ButtonSize.Small">
+                                <Icon Type="more" />
+                            </Button>
+                        </ChildContent>
+                        <Overlay>
+                            <Menu>
+                                <MenuItem Key="cancel" OnClick="@(() => ShowQuickActionModal(context, "cancel"))">
+                                    <Icon Type="close" />
+                                    <span>Hủy đơn</span>
+                                </MenuItem>
+                                <MenuItem Key="reject" OnClick="@(() => ShowQuickActionModal(context, "reject"))">
+                                    <Icon Type="stop" />
+                                    <span>Từ chối</span>
+                                </MenuItem>
+                            </Menu>
+                        </Overlay>
+                    </Dropdown>
                 </SpaceItem>
             }
         </Space>
@@ -171,7 +296,28 @@
             </Select>
         </FormItem>
         <FormItem Label="Khoảng thời gian">
-            <RangePicker @bind-Value="@_filterModel.DateRange" Format="dd/MM/yyyy" />
+            <RangePicker @bind-Value="@_filterModel.DateRange" 
+                        Format="dd/MM/yyyy"
+                        DefaultPickerValue="@GetDefaultPickerValue()" />
+            
+            <!-- Quick Date Buttons -->
+            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetTodayRange()))">
+                    Hôm nay
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetLast7DaysRange()))">
+                    7 ngày qua
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetLast30DaysRange()))">
+                    30 ngày qua
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetThisMonthRange()))">
+                    Tháng này
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetLastMonthRange()))">
+                    Tháng trước
+                </Button>
+            </div>
         </FormItem>
         <FormItem Label="Khoảng tiền">
             <Row Gutter="8">
@@ -255,51 +401,120 @@
                     <Text Strong>@context.Subtotal.ToString("N0") VND</Text>
                 </PropertyColumn>
             </Table>
-            <div style="text-align: right; margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
-                <Text Strong Style="font-size: 16px;">
-                    Tổng cộng: @_currentOrder.TotalAmount.ToString("N0") VND
-                </Text>
-            </div>
-        </Card>
+                         <div style="text-align: right; margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0;">
+                 <Text Strong Style="font-size: 16px;">
+                     Tổng cộng: @_currentOrder.TotalAmount.ToString("N0") VND
+                 </Text>
+             </div>
+         </Card>
+
+         @* Quick Status Actions in Detail Modal *@
+         @if (GetAvailableStatusTransitions(_currentOrder.Status).Any())
+         {
+             <Card Title="Cập nhật trạng thái" Style="margin-top: 16px;">
+                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                     @foreach (var nextStatus in GetAvailableStatusTransitions(_currentOrder.Status))
+                     {
+                         var (nextColor, nextText) = GetOrderStatusInfo(nextStatus);
+                         var buttonType = GetButtonTypeForStatus(nextStatus);
+                         var iconType = GetIconTypeForStatus(nextStatus);
+                         
+                         <Button Type="@buttonType" 
+                                 Size="@ButtonSize.Default"
+                                 OnClick="() => OnDetailStatusAction(nextStatus)">
+                             <Icon Type="@iconType" />
+                             <span style="margin-left: 4px;">@nextText</span>
+                         </Button>
+                     }
+                 </div>
+             </Card>
+         }
     }
 </Modal>
 
 <!-- Update Status Modal -->
-<Modal Title="@("Cập nhật trạng thái")"
+<Modal Title="@("Cập nhật trạng thái đơn hàng")"
        Visible="@_updateStatusModalVisible"
-       OnOk="@OnUpdateStatusOk"
        OnCancel="@OnUpdateStatusCancel"
-       Width="500">
+       Width="600"
+       Footer="null">
     @if (_currentOrder != null)
     {
-        <Form Model="@_updateStatusModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
-            <FormItem Label="Đơn hàng">
-                <Text Code>@_currentOrder.Id.ToString().Substring(0, 8)...</Text>
-            </FormItem>
-            <FormItem Label="Trạng thái hiện tại">
-                @{
-                    var (color, text) = GetOrderStatusInfo(_currentOrder.Status);
-                }
-                <Badge Status="@color" Text="@text" />
-            </FormItem>
-            <FormItem Label="Trạng thái mới">
-                <Select TItem="OrderStatus"
-                        TItemValue="OrderStatus"
-                        @bind-Value="@_updateStatusModel.NewStatus"
-                        Placeholder="Chọn trạng thái mới">
-                    <SelectOptions>
-                        @foreach (var status in GetAvailableStatusTransitions(_currentOrder.Status))
-                        {
-                            var (_, statusText) = GetOrderStatusInfo(status);
-                            <SelectOption TItem="OrderStatus" TItemValue="OrderStatus" Value="status" Label="@statusText" />
-                        }
-                    </SelectOptions>
-                </Select>
-            </FormItem>
-            <FormItem Label="Ghi chú">
-                <TextArea @bind-Value="@_updateStatusModel.Note" Rows="3" Placeholder="Thêm ghi chú (tùy chọn)" />
-            </FormItem>
-        </Form>
+        <div style="margin-bottom: 16px;">
+            <Text Strong>Đơn hàng: </Text>
+            <Text Code>@_currentOrder.Id.ToString().Substring(0, 8)...</Text>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <Text Strong>Trạng thái hiện tại: </Text>
+            @{
+                var (color, text) = GetOrderStatusInfo(_currentOrder.Status);
+            }
+            <Badge Status="@color" Text="@text" />
+        </div>
+
+        <Divider>Chuyển trạng thái</Divider>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            @foreach (var nextStatus in GetAvailableStatusTransitions(_currentOrder.Status))
+            {
+                var (nextColor, nextText) = GetOrderStatusInfo(nextStatus);
+                var buttonType = GetButtonTypeForStatus(nextStatus);
+                var iconType = GetIconTypeForStatus(nextStatus);
+                
+                <Button Type="@buttonType" 
+                        Size="@ButtonSize.Large" 
+                        Block="true"
+                        OnClick="() => OnStatusActionClick(nextStatus)">
+                    <Icon Type="@iconType" />
+                    <span style="margin-left: 8px;">@nextText</span>
+                    @if (nextStatus == OrderStatus.Cancelled || nextStatus == OrderStatus.Rejected)
+                    {
+                        <span style="color: #999; font-size: 12px; margin-left: 8px;">(Hoàn tồn kho)</span>
+                    }
+                </Button>
+            }
+        </div>
+
+        @if (_showNoteInput)
+        {
+            <div style="margin-top: 16px;">
+                <Text Strong>Ghi chú:</Text>
+                <TextArea @bind-Value="@_statusNote" 
+                         Rows="3" 
+                         Placeholder="Thêm ghi chú (tùy chọn)" 
+                         Style="margin-top: 8px;" />
+                <div style="margin-top: 12px; text-align: right;">
+                    <Button OnClick="() => _showNoteInput = false" Style="margin-right: 8px;">Hủy</Button>
+                    <Button Type="@ButtonType.Primary" OnClick="() => ConfirmStatusChange()">Xác nhận</Button>
+                </div>
+            </div>
+        }
+    }
+</Modal>
+
+<!-- Quick Action Modal -->
+<Modal Title="@GetQuickActionTitle()"
+       Visible="@_quickActionModalVisible"
+       OnOk="@OnQuickActionOk"
+       OnCancel="@OnQuickActionCancel"
+       Width="400">
+    @if (_currentOrder != null)
+    {
+        <div style="margin-bottom: 16px;">
+            <Text Strong>Đơn hàng: </Text>
+            <Text Code>@_currentOrder.Id.ToString().Substring(0, 8)...</Text>
+        </div>
+        
+        <Alert Type="@AlertType.Warning" 
+               Message="@GetQuickActionWarning()" 
+               Style="margin-bottom: 16px;" />
+        
+        <FormItem Label="Ghi chú">
+            <TextArea @bind-Value="@_quickActionNote" 
+                     Rows="3" 
+                     Placeholder="Thêm ghi chú (tùy chọn)" />
+        </FormItem>
     }
 </Modal>
 
@@ -311,10 +526,16 @@
     private bool _filterModalVisible = false;
     private bool _detailModalVisible = false;
     private bool _updateStatusModalVisible = false;
+    private bool _quickActionModalVisible = false;
     private FilterModel _filterModel = new();
-    private UpdateStatusModel _updateStatusModel = new();
+    private FilterModel _inlineFilterModel = new();
     private Dictionary<string, string> _currentFilter = new();
     private OrderDto? _currentOrder;
+    private bool _showNoteInput = false;
+    private string _statusNote = "";
+    private OrderStatus _pendingStatus;
+    private string _quickActionType = "";
+    private string _quickActionNote = "";
 
     private int pageSize = 10;
     private int pageIndex = 1;
@@ -331,15 +552,138 @@
         public double? MaxAmount { get; set; }
     }
 
-    private class UpdateStatusModel
-    {
-        public OrderStatus NewStatus { get; set; }
-        public string Note { get; set; } = "";
-    }
+
 
     protected override async Task OnInitializedAsync()
     {
+        // Set default 7 days range on page load
+        var defaultDateRange = GetLast7DaysRange();
+        _inlineFilterModel.DateRange = defaultDateRange;
+        _filterModel.DateRange = defaultDateRange;
+        
+        // Apply default 7 days filter
+        _currentFilter["startDate"] = defaultDateRange[0].ToString("yyyy-MM-dd");
+        _currentFilter["endDate"] = defaultDateRange[1].ToString("yyyy-MM-dd");
+        
         await LoadData();
+    }
+
+    private async Task ReloadData()
+    {
+        await LoadData();
+        MessageService.Success("Đã tải lại dữ liệu!");
+    }
+
+    private async Task OnInlineFilterChange()
+    {
+        await Task.Delay(300); // Debounce
+        
+        _currentFilter.Clear();
+        
+        if (!string.IsNullOrEmpty(_searchText))
+        {
+            _currentFilter["phone"] = _searchText;
+            _currentFilter["name"] = _searchText;
+        }
+        
+        if (_inlineFilterModel.Status.HasValue)
+            _currentFilter["status"] = _inlineFilterModel.Status.Value.ToString();
+        if (_inlineFilterModel.PaymentMethod.HasValue)
+            _currentFilter["paymentMethod"] = _inlineFilterModel.PaymentMethod.Value.ToString();
+        if (_inlineFilterModel.DateRange != null && _inlineFilterModel.DateRange.Length == 2)
+        {
+            _currentFilter["startDate"] = _inlineFilterModel.DateRange[0].ToString("yyyy-MM-dd");
+            _currentFilter["endDate"] = _inlineFilterModel.DateRange[1].ToString("yyyy-MM-dd");
+        }
+        if (_inlineFilterModel.MinAmount.HasValue)
+            _currentFilter["minAmount"] = _inlineFilterModel.MinAmount.Value.ToString();
+        if (_inlineFilterModel.MaxAmount.HasValue)
+            _currentFilter["maxAmount"] = _inlineFilterModel.MaxAmount.Value.ToString();
+
+        pageIndex = 1;
+        await LoadData();
+    }
+
+    private string[] GetDatePlaceholder()
+    {
+        var today = DateTime.Now;
+        var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+        return new[] { startOfWeek.ToString("dd/MM/yyyy"), today.ToString("dd/MM/yyyy") };
+    }
+
+    private DateTime[] GetDefaultPickerValue()
+    {
+        var today = DateTime.Now;
+        return new[] { today.AddDays(-7), today }; // Mặc định hiển thị tháng hiện tại
+    }
+
+    private DateTime[] GetTodayRange()
+    {
+        var today = DateTime.Now.Date;
+        return new[] { today, today };
+    }
+
+    private DateTime[] GetLast7DaysRange()
+    {
+        var today = DateTime.Now.Date;
+        return new[] { today.AddDays(-6), today };
+    }
+
+    private DateTime[] GetLast30DaysRange()
+    {
+        var today = DateTime.Now.Date;
+        return new[] { today.AddDays(-29), today };
+    }
+
+    private DateTime[] GetThisMonthRange()
+    {
+        var today = DateTime.Now.Date;
+        var startOfMonth = new DateTime(today.Year, today.Month, 1);
+        return new[] { startOfMonth, today };
+    }
+
+    private DateTime[] GetLastMonthRange()
+    {
+        var today = DateTime.Now.Date;
+        var startOfLastMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
+        var endOfLastMonth = startOfLastMonth.AddMonths(1).AddDays(-1);
+        return new[] { startOfLastMonth, endOfLastMonth };
+    }
+
+    private async Task SetDateRange(DateTime[] range)
+    {
+        _inlineFilterModel.DateRange = range;
+        await OnInlineFilterChange();
+    }
+
+    private void SetModalDateRange(DateTime[] range)
+    {
+        _filterModel.DateRange = range;
+    }
+
+    private bool HasActiveFilters()
+    {
+        // Check if there are any filters other than the default 7 days range
+        if (!string.IsNullOrEmpty(_searchText)) return true;
+        if (_inlineFilterModel.Status.HasValue) return true;
+        if (_inlineFilterModel.PaymentMethod.HasValue) return true;
+        if (_inlineFilterModel.MinAmount.HasValue) return true;
+        if (_inlineFilterModel.MaxAmount.HasValue) return true;
+        
+        // Check if date range is different from default 7 days
+        if (_inlineFilterModel.DateRange != null && _inlineFilterModel.DateRange.Length == 2)
+        {
+            var defaultRange = GetLast7DaysRange();
+            var currentStart = _inlineFilterModel.DateRange[0].Date;
+            var currentEnd = _inlineFilterModel.DateRange[1].Date;
+            var defaultStart = defaultRange[0].Date;
+            var defaultEnd = defaultRange[1].Date;
+            
+            if (currentStart != defaultStart || currentEnd != defaultEnd)
+                return true;
+        }
+        
+        return false;
     }
 
     private async Task LoadData()
@@ -368,13 +712,14 @@
         _searchText = value;
         if (!string.IsNullOrEmpty(value))
         {
-            _currentFilter["name"] = value;
+            // Use "search" key for combined phone/name search
             _currentFilter["phone"] = value;
+            _currentFilter["name"] = value;
         }
         else
         {
-            _currentFilter.Remove("name");
             _currentFilter.Remove("phone");
+            _currentFilter.Remove("name");
         }
         pageIndex = 1;
         await LoadData();
@@ -439,10 +784,19 @@
     {
         _currentFilter.Clear();
         _searchText = "";
-        _filterModel = new FilterModel();
+        
+        // Reset filters but keep 7 days date range as default
+        var defaultDateRange = GetLast7DaysRange();
+        _filterModel = new FilterModel { DateRange = defaultDateRange };
+        _inlineFilterModel = new FilterModel { DateRange = defaultDateRange };
+        
+        // Apply 7 days filter
+        _currentFilter["startDate"] = defaultDateRange[0].ToString("yyyy-MM-dd");
+        _currentFilter["endDate"] = defaultDateRange[1].ToString("yyyy-MM-dd");
+        
         pageIndex = 1;
         await LoadData();
-        MessageService.Success("Đã xóa bộ lọc!");
+        MessageService.Success("Đã xóa bộ lọc! Hiển thị 7 ngày gần nhất.");
     }
 
     private async Task ShowDetailModal(OrderDto order)
@@ -464,22 +818,53 @@
         _currentOrder = null;
     }
 
-    private void ShowUpdateStatusModal(OrderDto order)
+        private void ShowUpdateStatusModal(OrderDto order)
     {
         _currentOrder = order;
-        _updateStatusModel = new UpdateStatusModel { NewStatus = order.Status };
+        _showNoteInput = false;
+        _statusNote = "";
         _updateStatusModalVisible = true;
     }
 
-    private async Task OnUpdateStatusOk()
+    private void OnStatusActionClick(OrderStatus status)
     {
-                 try
-         {
-             await orderService.UpdateOrderStatus(_currentOrder!.Id, (int)_updateStatusModel.NewStatus, _updateStatusModel.Note);
-             MessageService.Success("Cập nhật trạng thái thành công!");
-             _updateStatusModalVisible = false;
-             await LoadData();
-         }
+        _pendingStatus = status;
+        if (status == OrderStatus.Cancelled || status == OrderStatus.Rejected)
+        {
+            _showNoteInput = true;
+        }
+        else
+        {
+            _statusNote = "";
+            ConfirmStatusChange();
+        }
+    }
+
+    private async Task ConfirmStatusChange()
+    {
+        try
+        {
+            if (_pendingStatus == OrderStatus.Cancelled)
+            {
+                await orderService.AdminCancelOrder(_currentOrder!.Id, _statusNote);
+                MessageService.Success("Hủy đơn hàng thành công! Đã hoàn tồn kho.");
+            }
+            else if (_pendingStatus == OrderStatus.Rejected)
+            {
+                await orderService.AdminRejectOrder(_currentOrder!.Id, _statusNote);
+                MessageService.Success("Từ chối đơn hàng thành công! Đã hoàn tồn kho.");
+            }
+            else
+            {
+                await orderService.UpdateOrderStatus(_currentOrder!.Id, (int)_pendingStatus, _statusNote);
+                MessageService.Success("Cập nhật trạng thái thành công!");
+            }
+            
+            _updateStatusModalVisible = false;
+            _showNoteInput = false;
+            _statusNote = "";
+            await LoadData();
+        }
         catch (Exception ex)
         {
             MessageService.Error($"Lỗi khi cập nhật trạng thái: {ex.Message}");
@@ -489,22 +874,78 @@
     private void OnUpdateStatusCancel()
     {
         _updateStatusModalVisible = false;
+        _showNoteInput = false;
+        _statusNote = "";
         _currentOrder = null;
     }
 
-    private async Task OnCancelOrder(Guid orderId)
+    private void ShowQuickActionModal(OrderDto order, string actionType)
+    {
+        _currentOrder = order;
+        _quickActionType = actionType;
+        _quickActionNote = "";
+        _quickActionModalVisible = true;
+    }
+
+    private async Task OnQuickActionOk()
     {
         try
         {
-            // Note: OrderService.CancelOrder requires userId, but we're admin canceling
-            // We might need to modify the service or use UpdateOrderStatus instead
-            await orderService.UpdateOrderStatus(orderId, (int)OrderStatus.Cancelled, "Hủy bởi admin");
-            MessageService.Success("Hủy đơn hàng thành công!");
+            if (_quickActionType == "cancel")
+            {
+                await orderService.AdminCancelOrder(_currentOrder!.Id, _quickActionNote);
+                MessageService.Success("Hủy đơn hàng thành công! Đã hoàn tồn kho.");
+            }
+            else if (_quickActionType == "reject")
+            {
+                await orderService.AdminRejectOrder(_currentOrder!.Id, _quickActionNote);
+                MessageService.Success("Từ chối đơn hàng thành công! Đã hoàn tồn kho.");
+            }
+
+            _quickActionModalVisible = false;
             await LoadData();
         }
         catch (Exception ex)
         {
-            MessageService.Error($"Lỗi khi hủy đơn hàng: {ex.Message}");
+            MessageService.Error($"Lỗi khi thực hiện thao tác: {ex.Message}");
+        }
+    }
+
+    private void OnQuickActionCancel()
+    {
+        _quickActionModalVisible = false;
+        _currentOrder = null;
+        _quickActionType = "";
+        _quickActionNote = "";
+    }
+
+    private async Task OnDetailStatusAction(OrderStatus status)
+    {
+        try
+        {
+            if (status == OrderStatus.Cancelled)
+            {
+                await orderService.AdminCancelOrder(_currentOrder!.Id);
+                MessageService.Success("Hủy đơn hàng thành công! Đã hoàn tồn kho.");
+            }
+            else if (status == OrderStatus.Rejected)
+            {
+                await orderService.AdminRejectOrder(_currentOrder!.Id);
+                MessageService.Success("Từ chối đơn hàng thành công! Đã hoàn tồn kho.");
+            }
+            else
+            {
+                await orderService.UpdateOrderStatus(_currentOrder!.Id, (int)status);
+                MessageService.Success("Cập nhật trạng thái thành công!");
+            }
+            
+            // Refresh current order detail
+            _currentOrder = await orderService.GetOrderById(_currentOrder.Id);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi cập nhật trạng thái: {ex.Message}");
         }
     }
 
@@ -565,4 +1006,136 @@
             _ => new List<OrderStatus>()
         };
     }
+
+    private ButtonType GetButtonTypeForStatus(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Prepairing => ButtonType.Primary,
+            OrderStatus.Shipping => ButtonType.Primary,
+            OrderStatus.Completed => ButtonType.Primary,
+            OrderStatus.Cancelled => ButtonType.Default,
+            OrderStatus.Rejected => ButtonType.Default,
+            _ => ButtonType.Default
+        };
+    }
+
+    private string GetIconTypeForStatus(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.Prepairing => "tool",
+            OrderStatus.Shipping => "car",
+            OrderStatus.Completed => "check-circle",
+            OrderStatus.Cancelled => "close-circle",
+            OrderStatus.Rejected => "stop",
+            _ => "question-circle"
+        };
+    }
+
+    private string GetQuickActionTitle()
+    {
+        return _quickActionType switch
+        {
+            "cancel" => "Xác nhận hủy đơn hàng",
+            "reject" => "Xác nhận từ chối đơn hàng",
+            _ => "Xác nhận thao tác"
+        };
+    }
+
+    private string GetQuickActionWarning()
+    {
+        return _quickActionType switch
+        {
+            "cancel" => "Hủy đơn hàng sẽ hoàn lại số lượng tồn kho cho tất cả sản phẩm trong đơn.",
+            "reject" => "Từ chối đơn hàng sẽ hoàn lại số lượng tồn kho cho tất cả sản phẩm trong đơn.",
+            _ => "Bạn có chắc chắn muốn thực hiện thao tác này?"
+        };
+    }
 }
+
+<style>
+    /* Search Controls Row */
+    .search-controls-row {
+        width: 100%;
+    }
+
+    .controls-right {
+        justify-content: flex-end;
+        width: 100%;
+    }
+
+    /* Responsive Filter Styles */
+
+    .desktop-filters {
+        display: block;
+    }
+
+    .filter-modal-btn {
+        display: none;
+    }
+
+    .hidden-xs {
+        display: inline;
+    }
+
+    .d-flex {
+        display: flex;
+    }
+
+    .justify-content-end {
+        justify-content: flex-end;
+    }
+
+    /* Mobile Responsive */
+    @@media (max-width: 991px) {
+        .desktop-filters {
+            display: none;
+        }
+
+        .filter-modal-btn {
+            display: inline-block;
+        }
+    }
+
+    @@media (max-width: 575px) {
+        .hidden-xs {
+            display: none;
+        }
+
+        .ant-col {
+            margin-bottom: 8px;
+        }
+
+        .d-flex {
+            justify-content: center;
+        }
+
+        .controls-right {
+            justify-content: center;
+        }
+
+
+    }
+
+
+
+    /* Improve table responsive */
+    .ant-table-wrapper {
+        overflow-x: auto;
+    }
+
+    /* Better spacing for controls */
+    .ant-space-item {
+        display: flex;
+        align-items: center;
+    }
+
+
+
+    /* Button hover effects */
+    .ant-btn:hover {
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+</style>
