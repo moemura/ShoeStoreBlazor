@@ -47,6 +47,47 @@ const ProductCard = ({ product, isHovered, onMouseEnter, onMouseLeave }) => {
     }
   };
 
+  // Debug: Log product data structure
+  if (product.name && product.name.includes('test')) {
+    console.log('Product data:', {
+      name: product.name,
+      mainImage: product.mainImage,
+      images: product.images,
+      totalImages: product.images?.length || 0
+    });
+  }
+
+  // Check if product has a second image for hover effect
+  const hasHoverImage = () => {
+    // Case 1: Has mainImage and at least 1 image in images array
+    if (product.mainImage && product.images && product.images.length >= 1) {
+      return true;
+    }
+    // Case 2: No mainImage but has at least 2 images in images array
+    if (!product.mainImage && product.images && product.images.length >= 2) {
+      return true;
+    }
+    return false;
+  };
+
+  // Get the main image to display
+  const getMainImage = () => {
+    return product.mainImage || product.images?.[0] || 'https://via.placeholder.com/400';
+  };
+
+  // Get the hover image to display
+  const getHoverImage = () => {
+    // If has mainImage, use first image from images array
+    if (product.mainImage && product.images && product.images.length >= 1) {
+      return product.images[0];
+    }
+    // If no mainImage, use second image from images array
+    if (!product.mainImage && product.images && product.images.length >= 2) {
+      return product.images[1];
+    }
+    return getMainImage();
+  };
+
   return (
     <Link
       to={`/products/${product.id}`}
@@ -55,15 +96,32 @@ const ProductCard = ({ product, isHovered, onMouseEnter, onMouseLeave }) => {
       onMouseLeave={onMouseLeave}
     >
       <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 mb-4 group">
+        {/* Main Image */}
         <img
-          src={isHovered && product.images?.length > 1 
-            ? product.images[1] 
-            : (product.mainImage || product.images?.[0] || 'https://via.placeholder.com/400')}
+          src={getMainImage()}
           alt={product.name}
           className="object-cover w-full h-full group-hover:scale-105 transition-all duration-300"
+          style={{
+            transition: 'all 0.3s ease-in-out',
+          }}
         />
+
+        {/* Second Image for Hover Effect (when available) */}
+        {hasHoverImage() && (
+          <img
+            src={getHoverImage()}
+            alt={`${product.name} - hover`}
+            className={`absolute inset-0 object-cover w-full h-full group-hover:scale-105 transition-all duration-300 ${
+              isHovered ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              transition: 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out',
+            }}
+          />
+        )}
+
         {product.salePrice && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md">
+          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md z-10">
             -{Math.round((1 - product.salePrice / product.price) * 100)}%
           </div>
         )}
@@ -71,7 +129,7 @@ const ProductCard = ({ product, isHovered, onMouseEnter, onMouseLeave }) => {
         <button
           onClick={handleQuickAddToCart}
           disabled={product.totalQuantity === 0 || isAddingToCart}
-          className={`absolute bottom-2 left-2 right-2 py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 transform translate-y-full group-hover:translate-y-0 opacity-0 group-hover:opacity-100 ${
+          className={`absolute bottom-2 left-2 right-2 py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 transform translate-y-full group-hover:translate-y-0 opacity-0 group-hover:opacity-100 z-10 ${
             product.totalQuantity === 0 
               ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
               : 'bg-black text-white hover:bg-gray-800'
