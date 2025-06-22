@@ -31,6 +31,7 @@ public static class ServiceContainer
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRevenueAnalysisService, RevenueAnalysisService>();
+        services.AddScoped<IDashboardAnalyticsService, DashboardAnalyticsService>();
         
         // Payment Services
         services.AddScoped<IPaymentService, PaymentService>();
