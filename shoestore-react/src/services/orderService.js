@@ -107,11 +107,13 @@ class OrderService {
   formatOrderStatus(status) {
     const statusMap = {
       1: 'Chờ xử lý',
-      2: 'Đang chuẩn bị',
-      3: 'Đang giao',
-      4: 'Hoàn thành',
-      5: 'Đã hủy',
-      6: 'Từ chối'
+      2: 'Chờ thanh toán',
+      3: 'Đã thanh toán',
+      4: 'Đang chuẩn bị',
+      5: 'Đang giao',
+      6: 'Hoàn thành',
+      7: 'Đã hủy',
+      8: 'Từ chối'
     };
     return statusMap[status] || 'Không xác định';
   }
@@ -131,12 +133,14 @@ class OrderService {
 
   getStatusBadgeClass(status) {
     const classes = {
-      1: 'bg-yellow-100 text-yellow-800', // Pending
-      2: 'bg-blue-100 text-blue-800',     // Preparing
-      3: 'bg-purple-100 text-purple-800', // Shipping
-      4: 'bg-green-100 text-green-800',   // Completed
-      5: 'bg-red-100 text-red-800',       // Cancelled
-      6: 'bg-gray-100 text-gray-800'      // Rejected
+      1: 'bg-yellow-100 text-yellow-800',   // Pending
+      2: 'bg-orange-100 text-orange-800',   // PendingPayment
+      3: 'bg-green-100 text-green-800',     // Paid
+      4: 'bg-blue-100 text-blue-800',       // Preparing
+      5: 'bg-purple-100 text-purple-800',   // Shipping
+      6: 'bg-green-100 text-green-800',     // Completed
+      7: 'bg-red-100 text-red-800',         // Cancelled
+      8: 'bg-gray-100 text-gray-800'        // Rejected
     };
     return classes[status] || 'bg-gray-100 text-gray-800';
   }

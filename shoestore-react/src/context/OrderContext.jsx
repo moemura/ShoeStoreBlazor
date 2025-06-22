@@ -76,11 +76,20 @@ export const OrderProvider = ({ children }) => {
       
       const token = getToken();
       const guestId = user ? null : getGuestId();
-      const order = await orderService.createOrder(orderData, token, guestId);
+      const response = await orderService.createOrder(orderData, token, guestId);
       
-      dispatch({ type: 'ADD_ORDER', payload: order });
-      
-      return { success: true, order };
+      // Handle new response structure from backend
+      if (response.success) {
+        dispatch({ type: 'ADD_ORDER', payload: response.order });
+        
+        return { 
+          success: true, 
+          order: response.order,
+          paymentResult: response.paymentResult 
+        };
+      } else {
+        throw new Error(response.error || 'Có lỗi xảy ra khi đặt hàng');
+      }
     } catch (error) {
       const errorMessage = error.message || 'Có lỗi xảy ra khi đặt hàng';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });

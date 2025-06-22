@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Identity;
 
 namespace WebApp.Controllers;
 
+/// <summary>
+/// Controller xử lý xác thực và phân quyền người dùng
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(AuthenticationSchemes = "Bearer")]
@@ -26,8 +29,14 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Đăng ký tài khoản mới (Customer)
     /// </summary>
+    /// <param name="model">Thông tin đăng ký tài khoản</param>
+    /// <returns>Thông tin xác thực sau khi đăng ký thành công</returns>
+    /// <response code="200">Đăng ký thành công</response>
+    /// <response code="400">Thông tin đăng ký không hợp lệ</response>
     [HttpPost("register")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AuthResponseDto), 200)]
+    [ProducesResponseType(typeof(AuthResponseDto), 400)]
     public async Task<ActionResult<AuthResponseDto>> Register(RegisterDto model)
     {
         var result = await _authService.RegisterAsync(model);
@@ -41,8 +50,14 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Đăng nhập và nhận JWT token
     /// </summary>
+    /// <param name="model">Thông tin đăng nhập (email/username và password)</param>
+    /// <returns>JWT token và thông tin người dùng</returns>
+    /// <response code="200">Đăng nhập thành công</response>
+    /// <response code="400">Thông tin đăng nhập không chính xác</response>
     [HttpPost("login")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(AuthResponseDto), 200)]
+    [ProducesResponseType(typeof(AuthResponseDto), 400)]
     public async Task<ActionResult<AuthResponseDto>> Login(LoginDto model)
     {
         // Luôn sử dụng JWT cho API

@@ -1,7 +1,7 @@
 ---
 description: 
-globs: *.cs
-alwaysApply: false
+globs: 
+alwaysApply: true
 ---
 # Backend Rules (Optimized)
 

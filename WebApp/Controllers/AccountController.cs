@@ -5,6 +5,9 @@ using WebApp.Services.Auth;
 
 namespace WebApp.Controllers;
 
+/// <summary>
+/// Controller quản lý tài khoản người dùng
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(AuthenticationSchemes = "Bearer")]
@@ -20,7 +23,15 @@ public class AccountController : ControllerBase
     /// <summary>
     /// Đổi mật khẩu tài khoản hiện tại
     /// </summary>
+    /// <param name="model">Thông tin đổi mật khẩu (mật khẩu cũ và mật khẩu mới)</param>
+    /// <returns>Kết quả đổi mật khẩu</returns>
+    /// <response code="200">Đổi mật khẩu thành công</response>
+    /// <response code="400">Thông tin không hợp lệ hoặc mật khẩu cũ sai</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpPost("change-password")]
+    [ProducesResponseType(typeof(AuthResponseDto), 200)]
+    [ProducesResponseType(typeof(AuthResponseDto), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult<AuthResponseDto>> ChangePassword(ChangePasswordDto model)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -35,7 +46,15 @@ public class AccountController : ControllerBase
     /// <summary>
     /// Cập nhật thông tin cá nhân
     /// </summary>
+    /// <param name="model">Thông tin cá nhân cần cập nhật</param>
+    /// <returns>Thông tin tài khoản sau khi cập nhật</returns>
+    /// <response code="200">Cập nhật thông tin thành công</response>
+    /// <response code="400">Thông tin không hợp lệ</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpPut("profile")]
+    [ProducesResponseType(typeof(AuthResponseDto), 200)]
+    [ProducesResponseType(typeof(AuthResponseDto), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult<AuthResponseDto>> UpdateProfile(UpdateProfileDto model)
     {
         bool authenticated = User.Identity.IsAuthenticated;
@@ -49,9 +68,16 @@ public class AccountController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy thông tin cá nhân
+    /// Lấy thông tin cá nhân của người dùng hiện tại
     /// </summary>
+    /// <returns>Thông tin cá nhân của người dùng</returns>
+    /// <response code="200">Lấy thông tin thành công</response>
+    /// <response code="400">Lỗi khi lấy thông tin</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpGet("profile")]
+    [ProducesResponseType(typeof(AuthResponseDto), 200)]
+    [ProducesResponseType(typeof(AuthResponseDto), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult<AuthResponseDto>> GetProfile()
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -64,9 +90,17 @@ public class AccountController : ControllerBase
     }
 
     /// <summary>
-    /// Xoá tài khoản (yêu cầu nhập mật khẩu)
+    /// Xóa tài khoản người dùng (yêu cầu xác nhận mật khẩu)
     /// </summary>
+    /// <param name="password">Mật khẩu để xác nhận xóa tài khoản</param>
+    /// <returns>Kết quả xóa tài khoản</returns>
+    /// <response code="200">Xóa tài khoản thành công</response>
+    /// <response code="400">Mật khẩu sai hoặc không thể xóa tài khoản</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpDelete("account")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult> DeleteAccount([FromBody] string password)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

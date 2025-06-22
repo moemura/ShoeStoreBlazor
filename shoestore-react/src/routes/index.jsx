@@ -6,6 +6,7 @@ import Products from '../pages/Products';
 import Cart from '../pages/Cart';
 import Checkout from '../pages/Checkout';
 import OrderConfirmation from '../pages/OrderConfirmation';
+import PaymentResult from '../pages/PaymentResult';
 import Orders from '../pages/Orders';
 import OrderDetail from '../pages/OrderDetail';
 import NotFound from '../pages/NotFound';
@@ -45,6 +46,10 @@ const router = createBrowserRouter([
       {
         path: 'order-confirmation/:orderId',
         element: <OrderConfirmation />
+      },
+      {
+        path: 'payment-result',
+        element: <PaymentResult />
       },
       // Protected routes
       {

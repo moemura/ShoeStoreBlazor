@@ -22,12 +22,14 @@ public class Order : BaseEntity<Guid>
 
 public enum OrderStatus
 {
-    Pending = 1,
-    Prepairing = 2,
-    Shipping = 3,
-    Completed = 4,
-    Cancelled = 5,
-    Rejected = 6
+    Pending = 1,           // Đang chờ
+    PendingPayment = 2,    // Chờ thanh toán
+    Paid = 3,              // Đã thanh toán
+    Preparing = 4,         // Đang chuẩn bị
+    Shipping = 5,          // Đang giao hàng
+    Completed = 6,         // Hoàn thành
+    Cancelled = 7,         // Đã hủy
+    Rejected = 8           // Bị từ chối
 }
 
 public enum PaymentMethod

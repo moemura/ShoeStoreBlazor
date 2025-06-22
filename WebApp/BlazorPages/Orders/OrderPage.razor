@@ -94,7 +94,7 @@
                     OnSelectedItemChanged="@(async (OrderStatus? value) => await OnInlineFilterChange())">
                 <SelectOptions>
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Pending" Label="Chờ xử lý" />
-                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Prepairing" Label="Đang chuẩn bị" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Preparing" Label="Đang chuẩn bị" />
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Shipping" Label="Đang giao" />
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Completed" Label="Hoàn thành" />
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Cancelled" Label="Đã hủy" />
@@ -221,7 +221,7 @@
                     <Icon Type="edit" />
                 </Button>
             </SpaceItem>
-            @if (context.Status == OrderStatus.Pending || context.Status == OrderStatus.Prepairing)
+            @if (context.Status == OrderStatus.Pending || context.Status == OrderStatus.PendingPayment || context.Status == OrderStatus.Paid || context.Status == OrderStatus.Preparing)
             {
                 <SpaceItem>
                     <Dropdown>
@@ -270,7 +270,7 @@
                     AllowClear="true">
                 <SelectOptions>
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Pending" Label="Chờ xử lý" />
-                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Prepairing" Label="Đang chuẩn bị" />
+                    <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Preparing" Label="Đang chuẩn bị" />
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Shipping" Label="Đang giao" />
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Completed" Label="Hoàn thành" />
                     <SelectOption TItem="OrderStatus?" TItemValue="OrderStatus?" Value="OrderStatus.Cancelled" Label="Đã hủy" />
@@ -954,7 +954,9 @@
         return status switch
         {
             OrderStatus.Pending => (BadgeStatus.Warning, "Chờ xử lý"),
-            OrderStatus.Prepairing => (BadgeStatus.Processing, "Đang chuẩn bị"),
+            OrderStatus.PendingPayment => (BadgeStatus.Warning, "Chờ thanh toán"),
+            OrderStatus.Paid => (BadgeStatus.Success, "Đã thanh toán"),
+            OrderStatus.Preparing => (BadgeStatus.Processing, "Đang chuẩn bị"),
             OrderStatus.Shipping => (BadgeStatus.Success, "Đang giao"),
             OrderStatus.Completed => (BadgeStatus.Success, "Hoàn thành"),
             OrderStatus.Cancelled => (BadgeStatus.Error, "Đã hủy"),
@@ -997,8 +999,10 @@
     {
         return currentStatus switch
         {
-            OrderStatus.Pending => new List<OrderStatus> { OrderStatus.Prepairing, OrderStatus.Cancelled, OrderStatus.Rejected },
-            OrderStatus.Prepairing => new List<OrderStatus> { OrderStatus.Shipping, OrderStatus.Cancelled },
+            OrderStatus.Pending => new List<OrderStatus> { OrderStatus.Preparing, OrderStatus.Cancelled, OrderStatus.Rejected },
+            OrderStatus.PendingPayment => new List<OrderStatus> { OrderStatus.Paid, OrderStatus.Cancelled, OrderStatus.Rejected },
+            OrderStatus.Paid => new List<OrderStatus> { OrderStatus.Preparing, OrderStatus.Cancelled },
+            OrderStatus.Preparing => new List<OrderStatus> { OrderStatus.Shipping, OrderStatus.Cancelled },
             OrderStatus.Shipping => new List<OrderStatus> { OrderStatus.Completed },
             OrderStatus.Completed => new List<OrderStatus>(), // No transitions from completed
             OrderStatus.Cancelled => new List<OrderStatus>(), // No transitions from cancelled
@@ -1011,7 +1015,9 @@
     {
         return status switch
         {
-            OrderStatus.Prepairing => ButtonType.Primary,
+            OrderStatus.PendingPayment => ButtonType.Primary,
+            OrderStatus.Paid => ButtonType.Primary,
+            OrderStatus.Preparing => ButtonType.Primary,
             OrderStatus.Shipping => ButtonType.Primary,
             OrderStatus.Completed => ButtonType.Primary,
             OrderStatus.Cancelled => ButtonType.Default,
@@ -1024,7 +1030,9 @@
     {
         return status switch
         {
-            OrderStatus.Prepairing => "tool",
+            OrderStatus.PendingPayment => "credit-card",
+            OrderStatus.Paid => "check-circle",
+            OrderStatus.Preparing => "tool",
             OrderStatus.Shipping => "car",
             OrderStatus.Completed => "check-circle",
             OrderStatus.Cancelled => "close-circle",

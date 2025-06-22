@@ -10,16 +10,23 @@ public class OrderService : IOrderService
     private readonly ICartService _cartService;
     private readonly IProductService _productService;
     private readonly OrderTotalStrategyFactory _orderTotalStrategyFactory;
+    private readonly PaymentStrategyFactory _paymentStrategyFactory;
 
-    public OrderService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICartService cartService, IProductService productService, OrderTotalStrategyFactory orderTotalStrategyFactory)
+    public OrderService(
+        IDbContextFactory<ShoeStoreDbContext> dbContextFactory, 
+        ICartService cartService, 
+        IProductService productService, 
+        OrderTotalStrategyFactory orderTotalStrategyFactory,
+        PaymentStrategyFactory paymentStrategyFactory)
     {
         _dbContextFactory = dbContextFactory;
         _cartService = cartService;
         _productService = productService;
         _orderTotalStrategyFactory = orderTotalStrategyFactory;
+        _paymentStrategyFactory = paymentStrategyFactory;
     }
 
-    public async Task<OrderDto> CreateOrder(OrderCreateRequest req, string? userId, string? guestId)
+    public async Task<OrderCreationResult> CreateOrder(OrderCreateRequest req, string? userId, string? guestId)
     {
         using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         
@@ -61,19 +68,46 @@ public class OrderService : IOrderService
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync();
         // 6. Gọi payment strategy
-        var paymentStrategy = PaymentStrategyFactory.GetStrategy((int)order.PaymentMethod);
-        await paymentStrategy.ProcessPayment(order.ToDto());
-        // 7. Xóa cache sản phẩm (invalidate cache)
+        var paymentStrategy = _paymentStrategyFactory.GetStrategy(order.PaymentMethod);
+        var paymentResult = await paymentStrategy.ProcessPayment(order.ToDto());
+        
+        // 7. Cập nhật order status dựa vào payment result
+        if (paymentResult.Success && !paymentResult.RequiresRedirect)
+        {
+            // COD payment - order is ready for processing
+            order.Status = OrderStatus.Pending;
+        }
+        else if (paymentResult.RequiresRedirect)
+        {
+            // E-wallet payment - waiting for payment
+            order.Status = OrderStatus.PendingPayment;
+        }
+        else
+        {
+            // Payment failed
+            order.Status = OrderStatus.Cancelled;
+        }
+        
+        await dbContext.SaveChangesAsync();
+        
+        // 8. Xóa cache sản phẩm (invalidate cache)
         if (_productService is ProductService ps)
             await ps.RemoveProductCache();
-        // 8. Xóa cart
-        if (!string.IsNullOrEmpty(userId) || !string.IsNullOrEmpty(guestId))
+            
+        // 9. Xóa cart only if payment is successful or requires redirect
+        if ((paymentResult.Success || paymentResult.RequiresRedirect) && 
+            (!string.IsNullOrEmpty(userId) || !string.IsNullOrEmpty(guestId)))
         {
             var key = userId ?? guestId;
             await _cartService.ClearCart(key);
         }
-        // 9. Trả về OrderDto
-        return order.ToDto();
+        
+        // 10. Trả về OrderCreationResult
+        return new OrderCreationResult
+        {
+            Order = order.ToDto(),
+            PaymentResult = paymentResult
+        };
     }
     public async Task<IEnumerable<OrderDto>> GetOrdersByUser(string userId)
     {

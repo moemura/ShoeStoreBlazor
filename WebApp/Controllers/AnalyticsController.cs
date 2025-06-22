@@ -5,6 +5,9 @@ using WebApp.Services.Analysis;
 
 namespace WebApp.Controllers;
 
+/// <summary>
+/// Controller phân tích và thống kê doanh thu
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize] // Yêu cầu đăng nhập
@@ -20,9 +23,15 @@ public class AnalyticsController : ControllerBase
     /// <summary>
     /// Lấy thống kê doanh thu tổng quan
     /// </summary>
-    /// <param name="request">Bộ lọc thống kê</param>
+    /// <param name="request">Bộ lọc thống kê doanh thu</param>
     /// <returns>Dữ liệu thống kê doanh thu</returns>
+    /// <response code="200">Trả về thống kê doanh thu thành công</response>
+    /// <response code="400">Lỗi khi xử lý dữ liệu</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpPost("revenue-statistics")]
+    [ProducesResponseType(typeof(RevenueStatisticDto), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult<RevenueStatisticDto>> GetRevenueStatistics([FromBody] RevenueFilterRequest request)
     {
         try
@@ -40,10 +49,16 @@ public class AnalyticsController : ControllerBase
     /// Lấy doanh thu theo khoảng thời gian
     /// </summary>
     /// <param name="period">Loại thời gian: day, week, month, year</param>
-    /// <param name="fromDate">Từ ngày</param>
-    /// <param name="toDate">Đến ngày</param>
+    /// <param name="fromDate">Từ ngày (optional)</param>
+    /// <param name="toDate">Đến ngày (optional)</param>
     /// <returns>Danh sách doanh thu theo thời gian</returns>
+    /// <response code="200">Trả về doanh thu theo thời gian thành công</response>
+    /// <response code="400">Lỗi khi xử lý dữ liệu</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpGet("revenue-by-period")]
+    [ProducesResponseType(typeof(List<RevenueByTimeDto>), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult<List<RevenueByTimeDto>>> GetRevenueByPeriod(
         [FromQuery] string period = "day",
         [FromQuery] DateTime? fromDate = null,
@@ -68,13 +83,19 @@ public class AnalyticsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy danh sách top khách hàng
+    /// Lấy danh sách top khách hàng có doanh thu cao nhất
     /// </summary>
-    /// <param name="count">Số lượng khách hàng cần lấy</param>
-    /// <param name="fromDate">Từ ngày</param>
-    /// <param name="toDate">Đến ngày</param>
+    /// <param name="count">Số lượng khách hàng cần lấy (mặc định: 10)</param>
+    /// <param name="fromDate">Từ ngày (optional)</param>
+    /// <param name="toDate">Đến ngày (optional)</param>
     /// <returns>Danh sách top khách hàng</returns>
+    /// <response code="200">Trả về danh sách top khách hàng thành công</response>
+    /// <response code="400">Lỗi khi xử lý dữ liệu</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpGet("top-customers")]
+    [ProducesResponseType(typeof(List<TopCustomerDto>), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult<List<TopCustomerDto>>> GetTopCustomers(
         [FromQuery] int count = 10,
         [FromQuery] DateTime? fromDate = null,
@@ -94,8 +115,14 @@ public class AnalyticsController : ControllerBase
     /// <summary>
     /// Lấy thống kê tổng quan (doanh thu hôm nay, tuần này, tháng này)
     /// </summary>
-    /// <returns>Thống kê tổng quan</returns>
+    /// <returns>Thống kê tổng quan về doanh thu và đơn hàng</returns>
+    /// <response code="200">Trả về thống kê tổng quan thành công</response>
+    /// <response code="400">Lỗi khi xử lý dữ liệu</response>
+    /// <response code="401">Chưa đăng nhập</response>
     [HttpGet("overview")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(401)]
     public async Task<ActionResult> GetOverview()
     {
         try

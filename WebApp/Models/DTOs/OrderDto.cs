@@ -1,3 +1,5 @@
+using WebApp.Services.Orders;
+
 namespace WebApp.Models.DTOs;
 
 public class OrderDto
@@ -19,4 +21,10 @@ public class OrderDto
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
+}
+
+public class OrderCreationResult
+{
+    public OrderDto Order { get; set; }
+    public PaymentProcessResult PaymentResult { get; set; }
 }

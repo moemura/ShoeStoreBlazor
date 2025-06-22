@@ -4,12 +4,25 @@ const API_URL = 'https://localhost:5001/api';
 
 // Helper function to get or generate guest ID
 const getGuestId = () => {
-  let guestId = localStorage.getItem('guestId');
-  if (!guestId) {
-    guestId = 'guest_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('guestId', guestId);
+  try {
+    let guestId = localStorage.getItem('guestId');
+    if (!guestId) {
+      guestId = 'guest_' + Math.random().toString(36).substr(2, 9);
+      try {
+        localStorage.setItem('guestId', guestId);
+      } catch (e) {
+        // Nếu không lưu được vào localStorage, vẫn trả về guestId vừa tạo
+      }
+    }
+    if (!guestId) {
+      // Nếu vẫn không có guestId, trả về fallback
+      guestId = 'guest_fallback_' + Math.random().toString(36).substr(2, 9);
+    }
+    return guestId;
+  } catch (e) {
+    // Nếu localStorage bị lỗi hoàn toàn, trả về fallback
+    return 'guest_fallback_' + Math.random().toString(36).substr(2, 9);
   }
-  return guestId;
 };
 
 // Helper function to get headers with guest ID

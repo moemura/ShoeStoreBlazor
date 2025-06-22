@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -25,6 +26,11 @@ public class Program
         // Configure JWT settings
         builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
         var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+        
+        // Configure Payment settings
+        builder.Services.Configure<PaymentSettings>(builder.Configuration.GetSection("PaymentSettings"));
+        builder.Services.Configure<MoMoSettings>(builder.Configuration.GetSection("MoMoSettings"));
+        builder.Services.Configure<VnPaySettings>(builder.Configuration.GetSection("VnPaySettings"));
         
         if (string.IsNullOrEmpty(jwtSettings?.SecretKey))
         {
@@ -99,7 +105,17 @@ public class Program
 
         builder.Services.AddSwaggerGen(option =>
         {
-            option.SwaggerDoc("v1", new OpenApiInfo { Title = "Demo API", Version = "v1" });
+            option.SwaggerDoc("v1", new OpenApiInfo 
+            { 
+                Title = "ShoeStore API", 
+                Version = "v1",
+                Description = "API for ShoeStore application"
+            });
+            
+            // Thêm XML comments
+            var xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            option.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+            
             option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 In = ParameterLocation.Header,

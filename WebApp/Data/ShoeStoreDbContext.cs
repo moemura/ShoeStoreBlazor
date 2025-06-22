@@ -16,6 +16,7 @@ public class ShoeStoreDbContext : IdentityDbContext<AppUser>
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<Order> Orders { get; set; }
     public virtual DbSet<OrderItem> OrderItems { get; set; }
+    public virtual DbSet<PaymentTransaction> PaymentTransactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -6,6 +6,7 @@ using WebApp.Services.Catches;
 using WebApp.Services.Categories;
 using WebApp.Services.Files;
 using WebApp.Services.Orders;
+using WebApp.Services.Payments;
 using WebApp.Services.Products;
 using WebApp.Services.Sizes;
 
@@ -16,6 +17,7 @@ public static class ServiceContainer
     public static void AddAppServices(this IServiceCollection services)
     {
         services.AddScoped<OrderTotalStrategyFactory>();
+        services.AddScoped<PaymentStrategyFactory>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ICartService, CartService>();
         //services.AddScoped<ICacheService, NoCacheService>();
@@ -29,6 +31,13 @@ public static class ServiceContainer
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRevenueAnalysisService, RevenueAnalysisService>();
+        
+        // Payment Services
+        services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IPaymentGatewayFactory, PaymentGatewayFactory>();
+        services.AddScoped<MoMoPaymentGatewayService>();
+        services.AddScoped<VnPayPaymentGatewayService>();
+        
         services.AddHttpClient();
     }
     public static void AddExternalServices(this IServiceCollection services)

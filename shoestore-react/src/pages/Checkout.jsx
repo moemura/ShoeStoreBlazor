@@ -4,6 +4,8 @@ import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
+import { paymentService } from '../services/paymentService';
+import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import OrderSuccessModal from '../components/OrderSuccessModal';
 
 const Checkout = () => {
@@ -138,7 +140,29 @@ const Checkout = () => {
         // Mark that order has been placed to prevent cart redirect
         orderPlacedRef.current = true;
         
-        // Clear cart after successful order
+        // Check if payment requires redirect (e-wallet payments)
+        console.log('Full result:', result); // Debug log
+        console.log('Payment result:', result.paymentResult); // Debug log
+        
+        // Check if payment requires redirect - VnPay/MoMo returns PaymentUrl when successful
+        if (result.paymentResult && result.paymentResult.paymentUrl) {
+          // For e-wallet payments, redirect to payment gateway
+          console.log('Payment success:', result.paymentResult.success);
+          console.log('Payment URL:', result.paymentResult.paymentUrl);
+          console.log('Error message:', result.paymentResult.errorMessage);
+          
+          addToast('Đang chuyển đến trang thanh toán...', 'info');
+          window.location.href = result.paymentResult.paymentUrl;
+          return;
+        } else if (result.paymentResult && result.paymentResult.errorMessage) {
+          // Payment initiation failed
+          const errorMsg = result.paymentResult.errorMessage || 'Khởi tạo thanh toán thất bại';
+          console.error('Payment initiation failed:', errorMsg);
+          addToast(errorMsg, 'error');
+          return;
+        }
+        
+        // For COD or completed payments, clear cart and show success
         await clearCart();
         
         // Show success modal with order details
@@ -156,12 +180,10 @@ const Checkout = () => {
     }
   };
 
-  const paymentMethods = [
-    { value: 0, label: 'Thanh toán khi nhận hàng (COD)', icon: '💵' },
-    { value: 3, label: 'MoMo', icon: '📱' },
-    { value: 4, label: 'VnPay', icon: '🏦' },
-    { value: 1, label: 'Chuyển khoản ngân hàng', icon: '🏧' },
-  ];
+  // Payment method change handler
+  const handlePaymentMethodChange = (methodId) => {
+    setFormData(prev => ({ ...prev, paymentMethod: methodId }));
+  };
 
   if (cartLoading) {
     return (
@@ -275,24 +297,10 @@ const Checkout = () => {
 
             {/* Payment Methods */}
             <div className="bg-white rounded-lg border p-6">
-              <h2 className="text-xl font-semibold mb-4">Phương thức thanh toán</h2>
-              
-              <div className="space-y-3">
-                {paymentMethods.map((method) => (
-                  <label key={method.value} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value={method.value}
-                      checked={formData.paymentMethod === method.value}
-                      onChange={handleInputChange}
-                      className="mr-3"
-                    />
-                    <span className="mr-2">{method.icon}</span>
-                    <span>{method.label}</span>
-                  </label>
-                ))}
-              </div>
+              <PaymentMethodSelector
+                selectedPaymentMethod={formData.paymentMethod}
+                onPaymentMethodChange={handlePaymentMethodChange}
+              />
             </div>
           </div>
 

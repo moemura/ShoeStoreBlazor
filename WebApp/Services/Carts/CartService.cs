@@ -18,12 +18,21 @@ public class CartService : ICartService
 
     public async Task<CartDto> GetCart(string userIdOrGuestId)
     {
+        if (string.IsNullOrWhiteSpace(userIdOrGuestId))
+            return new CartDto()
+            {
+                Items = [],
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
+            };
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         return await _cacheService.GetOrSetAsync(key, async () => new CartDto { CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }, TimeSpan.FromDays(CartExpireDays));
     }
 
     public async Task<CartItemDto> AddOrUpdateItem(string userIdOrGuestId, CartItemAddOrUpdateRequest request)
     {
+        if (string.IsNullOrWhiteSpace(userIdOrGuestId))
+            throw new ArgumentException("userIdOrGuestId cannot be null or empty", nameof(userIdOrGuestId));
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         var cart = await GetCart(userIdOrGuestId);
         // Kiểm tra tồn kho
@@ -60,6 +69,8 @@ public class CartService : ICartService
 
     public async Task RemoveItem(string userIdOrGuestId, int inventoryId)
     {
+        if (string.IsNullOrWhiteSpace(userIdOrGuestId))
+            throw new ArgumentException("userIdOrGuestId cannot be null or empty", nameof(userIdOrGuestId));
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         var cart = await GetCart(userIdOrGuestId);
         cart.Items.RemoveAll(i => i.InventoryId == inventoryId);
@@ -69,18 +80,26 @@ public class CartService : ICartService
 
     public async Task ClearCart(string userIdOrGuestId)
     {
+        if (string.IsNullOrWhiteSpace(userIdOrGuestId))
+            throw new ArgumentException("userIdOrGuestId cannot be null or empty", nameof(userIdOrGuestId));
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         await _cacheService.RemoveAsync(key);
     }
 
     public async Task<int> GetCartItemCount(string userIdOrGuestId)
     {
+        if (string.IsNullOrWhiteSpace(userIdOrGuestId))
+            throw new ArgumentException("userIdOrGuestId cannot be null or empty", nameof(userIdOrGuestId));
         var cart = await GetCart(userIdOrGuestId);
         return cart.Items.Sum(i => i.Quantity);
     }
 
     public async Task MergeGuestCartToUser(string guestId, string userId)
     {
+        if (string.IsNullOrWhiteSpace(guestId))
+            throw new ArgumentException("guestId cannot be null or empty", nameof(guestId));
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException("userId cannot be null or empty", nameof(userId));
         var guestKey = GetCartKey(guestId, true);
         var userKey = GetCartKey(userId);
         var guestCart = await _cacheService.GetOrSetAsync(guestKey, async () => new CartDto { CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }, TimeSpan.FromDays(CartExpireDays));
