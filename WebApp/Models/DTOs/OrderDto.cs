@@ -12,7 +12,10 @@ public class OrderDto
     public string Phone { get; set; }
     public string? Email { get; set; }
     public string? VoucherCode { get; set; }
+    public string? VoucherName { get; set; }
     public string Address { get; set; }
+    public double OriginalAmount { get; set; }
+    public double DiscountAmount { get; set; }
     public double TotalAmount { get; set; }
     public PaymentMethod PaymentMethod { get; set; }
     public OrderStatus Status { get; set; }

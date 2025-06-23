@@ -9,6 +9,7 @@ using WebApp.Services.Orders;
 using WebApp.Services.Payments;
 using WebApp.Services.Products;
 using WebApp.Services.Sizes;
+using WebApp.Services.Vouchers;
 
 namespace WebApp;
 
@@ -32,6 +33,9 @@ public static class ServiceContainer
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IRevenueAnalysisService, RevenueAnalysisService>();
         services.AddScoped<IDashboardAnalyticsService, DashboardAnalyticsService>();
+        
+        // Voucher Services
+        services.AddScoped<IVoucherService, VoucherService>();
         
         // Payment Services
         services.AddScoped<IPaymentService, PaymentService>();

@@ -1,5 +1,6 @@
 using WebApp.Services.Carts;
 using WebApp.Services.Products;
+using WebApp.Services.Vouchers;
 using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Services.Orders;
@@ -11,19 +12,22 @@ public class OrderService : IOrderService
     private readonly IProductService _productService;
     private readonly OrderTotalStrategyFactory _orderTotalStrategyFactory;
     private readonly PaymentStrategyFactory _paymentStrategyFactory;
+    private readonly IVoucherService _voucherService;
 
     public OrderService(
         IDbContextFactory<ShoeStoreDbContext> dbContextFactory, 
         ICartService cartService, 
         IProductService productService, 
         OrderTotalStrategyFactory orderTotalStrategyFactory,
-        PaymentStrategyFactory paymentStrategyFactory)
+        PaymentStrategyFactory paymentStrategyFactory,
+        IVoucherService voucherService)
     {
         _dbContextFactory = dbContextFactory;
         _cartService = cartService;
         _productService = productService;
         _orderTotalStrategyFactory = orderTotalStrategyFactory;
         _paymentStrategyFactory = paymentStrategyFactory;
+        _voucherService = voucherService;
     }
 
     public async Task<OrderCreationResult> CreateOrder(OrderCreateRequest req, string? userId, string? guestId)
@@ -48,13 +52,43 @@ public class OrderService : IOrderService
             });
         }
         // 2. Tính tổng tiền (dùng strategy, có thể mở rộng discount/voucher)
-        var totalStrategy = _orderTotalStrategyFactory.CreateStrategy(req); // TODO: truyền tham số thực tế
+        var totalStrategy = _orderTotalStrategyFactory.CreateStrategy(req, userId, guestId);
+        double originalTotal = 0;
+        foreach (var item in orderItems)
+        {
+            originalTotal += item.Subtotal;
+        }
         double total = await totalStrategy.CalculateTotal(req);
+        
+        // 2.1. Get voucher information if voucher code is provided
+        string? voucherName = null;
+        double discountAmount = 0;
+        if (!string.IsNullOrEmpty(req.VoucherCode))
+        {
+            try
+            {
+                var applyResult = await _voucherService.ApplyVoucherAsync(req.VoucherCode, originalTotal, userId, guestId);
+                if (applyResult.Success && applyResult.Voucher != null)
+                {
+                    voucherName = applyResult.Voucher.Name;
+                    discountAmount = applyResult.DiscountAmount;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail the order creation
+                // The voucher will be validated again in the strategy
+            }
+        }
+        
         // 3. Tạo order entity
         var order = req.ToEntity();
         order.UserId = userId;
         order.GuestId = guestId;
+        order.OriginalAmount = originalTotal;
+        order.DiscountAmount = discountAmount;
         order.TotalAmount = total;
+        order.VoucherName = voucherName;
         order.Items = orderItems;
         // 4. Trừ kho
         foreach (var item in orderItems)
@@ -67,6 +101,12 @@ public class OrderService : IOrderService
         // 5. Lưu DB
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync();
+        
+        // 5.1. Mark voucher as used if applicable
+        if (!string.IsNullOrEmpty(req.VoucherCode))
+        {
+            await _voucherService.MarkVoucherUsedAsync(req.VoucherCode, order.Id, userId, guestId, order.DiscountAmount, order.OriginalAmount);
+        }
         // 6. Gọi payment strategy
         var paymentStrategy = _paymentStrategyFactory.GetStrategy(order.PaymentMethod);
         var paymentResult = await paymentStrategy.ProcessPayment(order.ToDto());

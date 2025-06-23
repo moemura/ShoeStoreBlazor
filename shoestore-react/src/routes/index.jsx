@@ -16,6 +16,7 @@ import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import ProfilePage from '../pages/ProfilePage';
 import ChangePasswordPage from '../pages/ChangePasswordPage';
+import VoucherHistory from '../pages/VoucherHistory';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -81,6 +82,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ChangePasswordPage />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'vouchers',
+        element: (
+          <ProtectedRoute>
+            <VoucherHistory />
           </ProtectedRoute>
         )
       },

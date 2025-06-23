@@ -148,6 +148,19 @@ const OrderConfirmation = () => {
                   <span className="text-gray-600">Thanh toán:</span>
                   <span>{orderService.formatPaymentMethod(order.paymentMethod)}</span>
                 </div>
+                {order.voucherCode && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Voucher:</span>
+                    <div className="text-right">
+                      <div className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded inline-block">
+                        {order.voucherCode}
+                      </div>
+                      {order.voucherName && (
+                        <div className="text-xs text-gray-500 mt-1">{order.voucherName}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -214,10 +227,32 @@ const OrderConfirmation = () => {
 
           {/* Order Total */}
           <div className="border-t mt-6 pt-4">
-            <div className="flex justify-between text-lg font-bold">
-              <span>Tổng cộng:</span>
-              <span>{formatPrice(order.totalAmount)}</span>
-            </div>
+            {order.discountAmount > 0 ? (
+              <div className="space-y-2">
+                <div className="flex justify-between text-lg">
+                  <span>Tạm tính:</span>
+                  <span className="line-through text-gray-500">{formatPrice(order.originalAmount)}</span>
+                </div>
+                <div className="flex justify-between text-lg text-red-600">
+                  <span>Giảm giá ({order.voucherCode}):</span>
+                  <span>-{formatPrice(order.discountAmount)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold text-green-600">
+                  <span>Tổng cộng:</span>
+                  <span>{formatPrice(order.totalAmount)}</span>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg mt-4">
+                  <p className="text-green-800 text-sm font-medium text-center">
+                    🎉 Bạn đã tiết kiệm được {formatPrice(order.discountAmount)} với voucher {order.voucherCode}!
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between text-lg font-bold">
+                <span>Tổng cộng:</span>
+                <span>{formatPrice(order.totalAmount)}</span>
+              </div>
+            )}
           </div>
         </div>
 

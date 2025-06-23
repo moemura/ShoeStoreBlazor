@@ -205,7 +205,23 @@ const Orders = () => {
                     <span className={`px-3 py-1 rounded-full text-sm ${orderService.getStatusBadgeClass(order.status)}`}>
                       {orderService.formatOrderStatus(order.status)}
                     </span>
-                    <span className="font-semibold text-lg">{formatPrice(order.totalAmount)}</span>
+                    <div className="text-right">
+                      {order.discountAmount > 0 ? (
+                        <div>
+                          <div className="text-sm text-gray-500 line-through">
+                            {formatPrice(order.originalAmount)}
+                          </div>
+                          <div className="font-semibold text-lg text-green-600">
+                            {formatPrice(order.totalAmount)}
+                          </div>
+                          <div className="text-xs text-red-600">
+                            Tiết kiệm {formatPrice(order.discountAmount)}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-lg">{formatPrice(order.totalAmount)}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -219,6 +235,17 @@ const Orders = () => {
                   <div>
                     <h4 className="font-medium mb-2">Thanh toán</h4>
                     <p className="text-gray-600">{orderService.formatPaymentMethod(order.paymentMethod)}</p>
+                    {order.voucherCode && (
+                      <div className="mt-2">
+                        <span className="text-sm font-medium">Voucher: </span>
+                        <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                          {order.voucherCode}
+                        </span>
+                        {order.voucherName && (
+                          <div className="text-xs text-gray-600 mt-1">{order.voucherName}</div>
+                        )}
+                      </div>
+                    )}
                     {order.customerNote && (
                       <div className="mt-2">
                         <span className="text-sm font-medium">Ghi chú: </span>

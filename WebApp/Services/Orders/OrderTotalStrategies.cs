@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WebApp.Services.Vouchers;
 
 namespace WebApp.Services.Orders;
 
@@ -31,33 +32,64 @@ public class BaseOrderTotalStrategy : IOrderTotalStrategy
 public class VoucherDecorator : IOrderTotalStrategy
 {
     private readonly IOrderTotalStrategy _inner;
-    private readonly ShoeStoreDbContext _dbContext;
+    private readonly IVoucherService _voucherService;
+    private readonly string? _userId;
+    private readonly string? _guestId;
 
-    public VoucherDecorator(IOrderTotalStrategy inner, ShoeStoreDbContext dbContext)
+    public VoucherDecorator(IOrderTotalStrategy inner, IVoucherService voucherService, string? userId, string? guestId)
     {
         _inner = inner;
-        _dbContext = dbContext;
+        _voucherService = voucherService;
+        _userId = userId;
+        _guestId = guestId;
     }
 
     public async Task<double> CalculateTotal(OrderCreateRequest req)
     {
-        var total = await _inner.CalculateTotal(req);
-        return total;
+        var baseTotal = await _inner.CalculateTotal(req);
+        
+        if (string.IsNullOrEmpty(req.VoucherCode))
+            return baseTotal;
+            
+        try
+        {
+            var applyResult = await _voucherService.ApplyVoucherAsync(
+                req.VoucherCode, 
+                baseTotal, 
+                _userId, 
+                _guestId
+            );
+            
+            if (!applyResult.Success)
+            {
+                throw new InvalidOperationException(applyResult.ErrorMessage ?? "Không thể áp dụng mã giảm giá");
+            }
+                
+            return applyResult.FinalAmount;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Lỗi áp dụng voucher: {ex.Message}");
+        }
     }
 }
 
 public class OrderTotalStrategyFactory
 {
     private readonly ShoeStoreDbContext _dbContext;
-    public OrderTotalStrategyFactory(ShoeStoreDbContext dbContext)
+    private readonly IVoucherService _voucherService;
+    
+    public OrderTotalStrategyFactory(ShoeStoreDbContext dbContext, IVoucherService voucherService)
     {
         _dbContext = dbContext;
+        _voucherService = voucherService;
     }
-    public IOrderTotalStrategy CreateStrategy(OrderCreateRequest orderRequest)
+    
+    public IOrderTotalStrategy CreateStrategy(OrderCreateRequest orderRequest, string? userId, string? guestId)
     {
         IOrderTotalStrategy strategy = new BaseOrderTotalStrategy(_dbContext);
         if (orderRequest.VoucherCode != null)
-            strategy = new VoucherDecorator(strategy, _dbContext);
+            strategy = new VoucherDecorator(strategy, _voucherService, userId, guestId);
         return strategy;
     }
 }

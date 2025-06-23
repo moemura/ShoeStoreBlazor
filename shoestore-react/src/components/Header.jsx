@@ -260,6 +260,15 @@ const Header = ({ onCartClick }) => {
                         </svg>
                         Đơn hàng của tôi
                       </Link>
+                      <Link
+                        to="/vouchers"
+                        className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
+                      >
+                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Mã giảm giá
+                      </Link>
                       <div className="border-t my-1"></div>
                       <button
                         onClick={handleLogout}
@@ -436,6 +445,16 @@ const Header = ({ onCartClick }) => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Đơn hàng của tôi
+                  </Link>
+                  <Link
+                    to="/vouchers"
+                    className={cn(
+                      "block text-lg font-medium text-gray-900",
+                      isActive('/vouchers') && "font-semibold text-black"
+                    )}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Mã giảm giá
                   </Link>
                   <button
                     onClick={handleLogout}

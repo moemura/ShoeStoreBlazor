@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import { paymentService } from '../services/paymentService';
 import PaymentMethodSelector from '../components/PaymentMethodSelector';
 import OrderSuccessModal from '../components/OrderSuccessModal';
+import VoucherInput from '../components/VoucherInput';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -23,6 +24,10 @@ const Checkout = () => {
     paymentMethod: 0, // COD default
     customerNote: '',
   });
+
+  // Voucher state
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,11 +67,26 @@ const Checkout = () => {
     0
   );
 
+  const finalTotal = Math.max(0, subtotal - voucherDiscount);
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
     }).format(price);
+  };
+
+  // Voucher handlers
+  const handleVoucherApplied = (voucherResult) => {
+    setAppliedVoucher(voucherResult.voucher);
+    setVoucherDiscount(voucherResult.discountAmount);
+    addToast(`Áp dụng mã giảm giá thành công! Giảm ${formatPrice(voucherResult.discountAmount)}`, 'success');
+  };
+
+  const handleVoucherRemoved = () => {
+    setAppliedVoucher(null);
+    setVoucherDiscount(0);
+    addToast('Đã bỏ mã giảm giá', 'info');
   };
 
   const handleInputChange = (e) => {
@@ -128,6 +148,7 @@ const Checkout = () => {
         address: formData.address,
         paymentMethod: parseInt(formData.paymentMethod),
         customerNote: formData.customerNote || null,
+        voucherCode: appliedVoucher?.code || null,
         items: cartItems.map(item => ({
           inventoryId: item.inventoryId,
           quantity: item.quantity
@@ -309,6 +330,15 @@ const Checkout = () => {
             <div className="bg-gray-50 rounded-lg p-6 sticky top-4">
               <h2 className="text-xl font-semibold mb-4">Tóm tắt đơn hàng</h2>
               
+              {/* Voucher Input */}
+              <VoucherInput
+                orderAmount={subtotal}
+                onVoucherApplied={handleVoucherApplied}
+                onVoucherRemoved={handleVoucherRemoved}
+                appliedVoucher={appliedVoucher}
+                disabled={isSubmitting || orderLoading}
+              />
+              
               {/* Order Items */}
               <div className="space-y-4 mb-6">
                 {cartItems.map((item) => (
@@ -338,14 +368,30 @@ const Checkout = () => {
                   <span>Tạm tính:</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {voucherDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Giảm giá ({appliedVoucher?.code}):</span>
+                    <span>-{formatPrice(voucherDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Phí vận chuyển:</span>
                   <span className="text-green-600">Miễn phí</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Tổng cộng:</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span className={voucherDiscount > 0 ? "text-green-600" : ""}>
+                    {formatPrice(finalTotal)}
+                  </span>
                 </div>
+                {voucherDiscount > 0 && subtotal !== finalTotal && (
+                  <div className="text-sm text-gray-500 text-right">
+                    <span className="line-through">{formatPrice(subtotal)}</span>
+                    <span className="ml-2 text-green-600 font-medium">
+                      Tiết kiệm {formatPrice(voucherDiscount)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}

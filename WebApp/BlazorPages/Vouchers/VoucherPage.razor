@@ -1,0 +1,1034 @@
+@page "/admin/vouchers"
+@using AntDesign.TableModels
+@using WebApp.Models
+@using WebApp.Models.DTOs
+@using WebApp.Services.Vouchers
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "RequireAdminRole")]
+@inject IVoucherService VoucherService
+@inject MessageService MessageService
+
+<PageTitle>Quản lý Voucher</PageTitle>
+<Breadcrumb>
+    <BreadcrumbItem Href="">
+        <Icon Type="@IconType.Outline.Home" />
+    </BreadcrumbItem>
+    <BreadcrumbItem Href="">
+        <Icon Type="@IconType.Outline.Gift" />
+        <span>Quản lý Voucher</span>
+    </BreadcrumbItem>
+</Breadcrumb>
+
+<br />
+
+<!-- Search and Controls Row -->
+<AntDesign.Row Gutter="16" Style="margin-bottom: 16px;" Class="search-controls-row">
+    <AntDesign.Col Xs="24" Sm="14" Md="16" Lg="18">
+        <Space Style="width: 100%;">
+            <SpaceItem>
+                <Input @bind-Value="@_searchText"
+                       Placeholder="Tìm theo mã voucher..."
+                       OnChange="@(async (string value) => await OnSearch(value))"
+                       Style="width: 300px;">
+                    <Suffix>
+                        <Icon Type="search" />
+                    </Suffix>
+                </Input>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="ShowFilterModal" Class="filter-modal-btn">
+                    <Icon Type="filter" />
+                    <span class="hidden-xs">Lọc</span>
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                @if (HasActiveFilters())
+                {
+                    <Button Type="@ButtonType.Default" OnClick="ClearFilters">
+                        <Icon Type="clear" />
+                        <span class="hidden-xs">Xóa lọc</span>
+                    </Button>
+                }
+            </SpaceItem>
+                 </Space>
+     </AntDesign.Col>
+
+     <AntDesign.Col Xs="24" Sm="10" Md="8" Lg="6" Class="d-flex justify-content-end">
+        <Space Style="width: 100%;" Class="controls-right">
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@ReloadData" Loading="_loading">
+                    <Icon Type="reload" />
+                    <span class="hidden-xs">Tải lại</span>
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" OnClick="ShowCreateModal">
+                    <Icon Type="plus" />
+                    <span class="hidden-xs">Tạo Voucher</span>
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Select TItem="int"
+                        TItemValue="int"
+                        Style="width: 120px"
+                        @bind-Value="@pageSize"
+                        OnChange="@(async (int value) => await OnPageSizeChange(value))">
+                    <SelectOptions>
+                        <SelectOption TItem="int" TItemValue="int" Value="5" Label="5 / trang" />
+                        <SelectOption TItem="int" TItemValue="int" Value="10" Label="10 / trang" />
+                        <SelectOption TItem="int" TItemValue="int" Value="20" Label="20 / trang" />
+                        <SelectOption TItem="int" TItemValue="int" Value="50" Label="50 / trang" />
+                    </SelectOptions>
+                </Select>
+            </SpaceItem>
+                 </Space>
+     </AntDesign.Col>
+ </AntDesign.Row>
+
+<!-- Inline Filters (Desktop) -->
+ <Card Class="desktop-filters" Style="margin-bottom: 16px;">
+     <AntDesign.Row Gutter="16">
+         <AntDesign.Col Span="6">
+            <Text Strong>Loại voucher:</Text>
+            <Select TItem="VoucherType?"
+                    TItemValue="VoucherType?"
+                    @bind-Value="@_inlineFilterModel.Type"
+                    Placeholder="Tất cả loại"
+                    AllowClear="true"
+                    Style="width: 100%; margin-top: 4px;"
+                    OnSelectedItemChanged="@(async (VoucherType? value) => await OnInlineFilterChange())">
+                <SelectOptions>
+                    <SelectOption TItem="VoucherType?" TItemValue="VoucherType?" Value="VoucherType.Percentage" Label="Phần trăm" />
+                    <SelectOption TItem="VoucherType?" TItemValue="VoucherType?" Value="VoucherType.FixedAmount" Label="Số tiền cố định" />
+                </SelectOptions>
+            </Select>
+                 </AntDesign.Col>
+
+         <AntDesign.Col Span="6">
+             <Text Strong>Trạng thái:</Text>
+             <Select TItem="bool?"
+                     TItemValue="bool?"
+                     @bind-Value="@_inlineFilterModel.IsActive"
+                     Placeholder="Tất cả trạng thái"
+                     AllowClear="true"
+                     Style="width: 100%; margin-top: 4px;"
+                     OnSelectedItemChanged="@(async (bool? value) => await OnInlineFilterChange())">
+                 <SelectOptions>
+                     <SelectOption TItem="bool?" TItemValue="bool?" Value="true" Label="Hoạt động" />
+                     <SelectOption TItem="bool?" TItemValue="bool?" Value="false" Label="Không hoạt động" />
+                 </SelectOptions>
+             </Select>
+         </AntDesign.Col>
+
+         <AntDesign.Col Span="6">
+            <Text Strong>Khoảng thời gian:</Text>
+            <div style="margin-top: 4px;">
+                <RangePicker @bind-Value="@_inlineFilterModel.DateRange"
+                             Format="dd/MM/yyyy"
+                             Placeholder="@GetDatePlaceholder()"
+                             DefaultPickerValue="@GetDefaultPickerValue()"
+                             Style="width: 100%;"
+                             OnChange="@(async (DateRangeChangedEventArgs<DateTime[]> args) => await OnInlineFilterChange())" />
+
+                <!-- Quick Date Buttons -->
+                <div style="margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap;">
+                    <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetDateRange(GetTodayRange()))">
+                        Hôm nay
+                    </Button>
+                    <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetDateRange(GetLast7DaysRange()))">
+                        7 ngày
+                    </Button>
+                    <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetDateRange(GetThisMonthRange()))">
+                        Tháng này
+                    </Button>
+                </div>
+            </div>
+        </AntDesign.Col>
+
+        <AntDesign.Col Span="6">
+            <Text Strong>Khoảng giá trị:</Text>
+            <div style="margin-top: 4px;">
+                <AntDesign.Row Gutter="8">
+                    <AntDesign.Col Span="12">
+                        <AntDesign.InputNumber @bind-Value="@_inlineFilterModel.MinValue"
+                                               Placeholder="Từ"
+                                               Min="0"
+                                               Style="width: 100%"
+                                               OnChange="@(async (double? value) => await OnInlineFilterChange())" />
+                    </AntDesign.Col>
+                    <AntDesign.Col Span="12">
+                        <AntDesign.InputNumber @bind-Value="@_inlineFilterModel.MaxValue"
+                                               Placeholder="Đến"
+                                               Min="0"
+                                               Style="width: 100%"
+                                               OnChange="@(async (double? value) => await OnInlineFilterChange())" />
+                    </AntDesign.Col>
+                </AntDesign.Row>
+            </div>
+        </AntDesign.Col>
+    </AntDesign.Row>
+</Card>
+
+<p />
+
+<Table @ref=_table
+       TItem="VoucherDto"
+       DataSource="@_data"
+       Total="@totalItems"
+       PageSize="@pageSize"
+       PageIndex="@pageIndex"
+       OnChange="@OnTableChange"
+       Loading="_loading">
+    <PropertyColumn Property="c => c.Code" Title="Mã Voucher">
+        <div>
+            <Text Strong Code>@context.Code</Text>
+            @if (!string.IsNullOrEmpty(context.Description))
+            {
+                <br />
+                <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">@context.Description</AntDesign.Text>
+            }
+        </div>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.Type" Title="Loại">
+        <Tag Color="@(context.Type == VoucherType.Percentage ? "blue" : "green")">
+            @(context.Type == VoucherType.Percentage ? "Phần trăm" : "Số tiền cố định")
+        </Tag>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.Value" Title="Giá trị">
+        @if (context.Type == VoucherType.Percentage)
+        {
+            <div>
+                <Text Strong Style="color: #1890ff;">@context.Value%</Text>
+                @if (context.MaxDiscountAmount.HasValue)
+                {
+                    <br />
+                    <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">
+                        Tối đa: @context.MaxDiscountAmount.Value.ToString("N0")đ
+                    </AntDesign.Text>
+                }
+            </div>
+        }
+        else
+        {
+            <AntDesign.Text Strong Style="color: #52c41a;">@context.Value.ToString("N0")đ</AntDesign.Text>
+        }
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.MinOrderAmount" Title="Đơn tối thiểu">
+        @if (context.MinOrderAmount.HasValue)
+        {
+            <Text>@context.MinOrderAmount.Value.ToString("N0")đ</Text>
+        }
+        else
+        {
+            <AntDesign.Text Type="@TextElementType.Secondary">Không</AntDesign.Text>
+        }
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.UsageLimit" Title="Giới hạn / Đã dùng">
+        <div>
+            <div>
+                @if (context.UsageLimit.HasValue)
+                {
+                    <Text>@context.UsageLimit.Value.ToString("N0")</Text>
+                }
+                else
+                {
+                    <AntDesign.Text Type="@TextElementType.Secondary">Không giới hạn</AntDesign.Text>
+                }
+            </div>
+            <div>
+                                 <AntDesign.Text Strong Style="@(context.UsedCount > 0 ? "color:#1890ff" : "color:#999")">
+                     @context.UsedCount.ToString("N0")
+                 </AntDesign.Text>
+            </div>
+        </div>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.StartDate" Title="Thời gian">
+        <div style="font-size: 12px;">
+            <div>Từ: @context.StartDate.ToString("dd/MM/yyyy")</div>
+            <div>Đến: @context.EndDate.ToString("dd/MM/yyyy")</div>
+        </div>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.IsActive" Title="Trạng thái">
+        @{
+            var (color, text) = GetVoucherStatusInfo(context);
+        }
+        <Badge Status="@color" Text="@text" />
+    </PropertyColumn>
+    <ActionColumn Title="Thao tác">
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="() => ShowStatistics(context.Code)">
+                    <Icon Type="bar-chart" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" OnClick="() => ShowEditModal(context)">
+                    <Icon Type="edit" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Popconfirm Title="Bạn có chắc chắn muốn xóa voucher này?"
+                            OnConfirm="@(() => DeleteVoucher(context.Code))"
+                            OkText="Xóa"
+                            CancelText="Hủy">
+                    <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" Danger>
+                        <Icon Type="delete" />
+                    </Button>
+                </Popconfirm>
+            </SpaceItem>
+        </Space>
+    </ActionColumn>
+</Table>
+
+<!-- Filter Modal -->
+<Modal Title="@("Lọc voucher")"
+       Visible="@_filterModalVisible"
+       OnOk="@OnFilterOk"
+       OnCancel="@OnFilterCancel"
+       Width="600">
+    <Form Model="@_filterModel" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <FormItem Label="Mã voucher">
+            <Input @bind-Value="@_filterModel.SearchTerm" />
+        </FormItem>
+        <FormItem Label="Loại voucher">
+            <Select TItem="VoucherType?"
+                    TItemValue="VoucherType?"
+                    @bind-Value="@_filterModel.Type"
+                    Placeholder="Chọn loại"
+                    AllowClear="true">
+                <SelectOptions>
+                    <SelectOption TItem="VoucherType?" TItemValue="VoucherType?" Value="VoucherType.Percentage" Label="Phần trăm" />
+                    <SelectOption TItem="VoucherType?" TItemValue="VoucherType?" Value="VoucherType.FixedAmount" Label="Số tiền cố định" />
+                </SelectOptions>
+            </Select>
+        </FormItem>
+        <FormItem Label="Trạng thái">
+            <Select TItem="bool?"
+                    TItemValue="bool?"
+                    @bind-Value="@_filterModel.IsActive"
+                    Placeholder="Chọn trạng thái"
+                    AllowClear="true">
+                <SelectOptions>
+                    <SelectOption TItem="bool?" TItemValue="bool?" Value="true" Label="Hoạt động" />
+                    <SelectOption TItem="bool?" TItemValue="bool?" Value="false" Label="Không hoạt động" />
+                </SelectOptions>
+            </Select>
+        </FormItem>
+        <FormItem Label="Khoảng thời gian">
+            <RangePicker @bind-Value="@_filterModel.DateRange"
+                         Format="dd/MM/yyyy"
+                         DefaultPickerValue="@GetDefaultPickerValue()" />
+
+            <!-- Quick Date Buttons -->
+            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetTodayRange()))">
+                    Hôm nay
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetLast7DaysRange()))">
+                    7 ngày qua
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetLast30DaysRange()))">
+                    30 ngày qua
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetThisMonthRange()))">
+                    Tháng này
+                </Button>
+                <Button Size="@ButtonSize.Small" Type="@ButtonType.Link" OnClick="@(() => SetModalDateRange(GetLastMonthRange()))">
+                    Tháng trước
+                </Button>
+            </div>
+        </FormItem>
+        <FormItem Label="Khoảng giá trị">
+                         <AntDesign.Row Gutter="8">
+                 <AntDesign.Col Span="12">
+                     <AntDesign.InputNumber @bind-Value="@_filterModel.MinValue" Placeholder="Từ" Min="0" Style="width: 100%" />
+                 </AntDesign.Col>
+                 <AntDesign.Col Span="12">
+                     <AntDesign.InputNumber @bind-Value="@_filterModel.MaxValue" Placeholder="Đến" Min="0" Style="width: 100%" />
+                 </AntDesign.Col>
+             </AntDesign.Row>
+        </FormItem>
+    </Form>
+</Modal>
+
+<!-- Create/Edit Modal -->
+<Modal Title="@(editingVoucher == null ? "Tạo Voucher Mới" : "Chỉnh Sửa Voucher")"
+       Visible="@_createEditModalVisible"
+       OnOk="@OnSaveVoucher"
+       OnCancel="@OnCreateEditCancel"
+       Width="800"
+       ConfirmLoading="@_isSubmitting">
+    @if (!string.IsNullOrEmpty(_modalError))
+    {
+        <Alert Type="@AlertType.Error" Message="@_modalError" Style="margin-bottom: 16px;" />
+    }
+
+    <Form Model="@_voucherForm" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <AntDesign.Row Gutter="16">
+            <AntDesign.Col Span="12">
+                <FormItem Label="Mã Voucher" Required>
+                    <Input @bind-Value="@_voucherForm.Code" 
+                           Placeholder="Ví dụ: SUMMER2024" 
+                           Disabled="@(editingVoucher != null)" />
+                </FormItem>
+            </AntDesign.Col>
+            <AntDesign.Col Span="12">
+                <FormItem Label="Loại Voucher" Required>
+                    <Select TItem="VoucherType"
+                            TItemValue="VoucherType"
+                            @bind-Value="@_voucherForm.Type">
+                        <SelectOptions>
+                            <SelectOption TItem="VoucherType" TItemValue="VoucherType" Value="VoucherType.Percentage" Label="Phần trăm" />
+                            <SelectOption TItem="VoucherType" TItemValue="VoucherType" Value="VoucherType.FixedAmount" Label="Số tiền cố định" />
+                        </SelectOptions>
+                    </Select>
+                </FormItem>
+            </AntDesign.Col>
+        </AntDesign.Row>
+
+                 <AntDesign.Row Gutter="16">
+             <AntDesign.Col Span="12">
+                 <FormItem Label="@(_voucherForm.Type == VoucherType.Percentage ? "Phần trăm giảm giá" : "Số tiền giảm (VNĐ)")" Required>
+                     <AntDesign.InputNumber @bind-Value="@_voucherForm.Value"
+                                            Min="0"
+                                            Max="@(_voucherForm.Type == VoucherType.Percentage ? 100 : 999999999)"
+                                            Step="@(_voucherForm.Type == VoucherType.Percentage ? 0.1 : 1000)"
+                                            Style="width: 100%" />
+                 </FormItem>
+             </AntDesign.Col>
+             <AntDesign.Col Span="12">
+                 <FormItem Label="Số tiền đơn hàng tối thiểu (VNĐ)">
+                     <AntDesign.InputNumber @bind-Value="@_voucherForm.MinOrderAmount"
+                                            Min="0"
+                                            Step="1000"
+                                            Style="width: 100%" />
+                 </FormItem>
+             </AntDesign.Col>
+         </AntDesign.Row>
+
+        @if (_voucherForm.Type == VoucherType.Percentage)
+        {
+            <AntDesign.Row Gutter="16">
+                <AntDesign.Col Span="12">
+                    <FormItem Label="Số tiền giảm tối đa (VNĐ)">
+                        <AntDesign.InputNumber @bind-Value="@_voucherForm.MaxDiscountAmount"
+                                               Min="0"
+                                               Step="1000"
+                                               Style="width: 100%" />
+                    </FormItem>
+                </AntDesign.Col>
+            </AntDesign.Row>
+        }
+
+                 <AntDesign.Row Gutter="16">
+             <AntDesign.Col Span="12">
+                 <FormItem Label="Ngày bắt đầu" Required>
+                     <DatePicker @bind-Value="@_voucherForm.StartDate"
+                                 Format="dd/MM/yyyy HH:mm"
+                                 ShowTime="true"
+                                 Style="width: 100%" />
+                 </FormItem>
+             </AntDesign.Col>
+             <AntDesign.Col Span="12">
+                 <FormItem Label="Ngày kết thúc" Required>
+                     <DatePicker @bind-Value="@_voucherForm.EndDate"
+                                 Format="dd/MM/yyyy HH:mm"
+                                 ShowTime="true"
+                                 Style="width: 100%" />
+                 </FormItem>
+             </AntDesign.Col>
+         </AntDesign.Row>
+
+                 <AntDesign.Row Gutter="16">
+             <AntDesign.Col Span="12">
+                 <FormItem Label="Giới hạn số lần sử dụng">
+                     <AntDesign.InputNumber @bind-Value="@_voucherForm.UsageLimit"
+                                            Min="1"
+                                            Placeholder="Để trống = không giới hạn"
+                                            Style="width: 100%" />
+                 </FormItem>
+             </AntDesign.Col>
+             <AntDesign.Col Span="12">
+                 <FormItem Label="Trạng thái">
+                     <Checkbox @bind-Value="_voucherForm.IsActive">Kích hoạt voucher</Checkbox>
+                 </FormItem>
+             </AntDesign.Col>
+         </AntDesign.Row>
+
+        <FormItem Label="Mô tả">
+            <TextArea @bind-Value="@_voucherForm.Description"
+                      Rows="3"
+                      Placeholder="Mô tả ngắn về voucher..." />
+        </FormItem>
+    </Form>
+</Modal>
+
+<!-- Statistics Modal -->
+<Modal Title="@("Thống kê Voucher: " + (_currentStats?.Code ?? ""))"
+       Visible="@_statsModalVisible"
+       OnCancel="@OnStatsCancel"
+       Width="800"
+       Footer="null">
+         @if (_currentStats != null)
+     {
+         <AntDesign.Row Gutter="16">
+             <AntDesign.Col Span="6">
+                 <Card BodyStyle="padding: 16px; text-align: center;" Style="background: #1890ff; color: white;">
+                     <Statistic Title="Lượt sử dụng" Value="@_currentStats.TotalUsed" ValueStyle="color: white;" />
+                 </Card>
+             </AntDesign.Col>
+             <AntDesign.Col Span="6">
+                 <Card BodyStyle="padding: 16px; text-align: center;" Style="background: #52c41a; color: white;">
+                     <Statistic Title="Tổng giảm giá" Value="@_currentStats.TotalDiscountAmount.ToString("N0")" Suffix="đ" ValueStyle="color: white;" />
+                 </Card>
+             </AntDesign.Col>
+             <AntDesign.Col Span="6">
+                 <Card BodyStyle="padding: 16px; text-align: center;" Style="background: #13c2c2; color: white;">
+                     <Statistic Title="Người dùng" Value="@_currentStats.UniqueUsers" ValueStyle="color: white;" />
+                 </Card>
+             </AntDesign.Col>
+             <AntDesign.Col Span="6">
+                 <Card BodyStyle="padding: 16px; text-align: center;" Style="background: #faad14; color: white;">
+                     <Statistic Title="Còn lại" 
+                                Value="@(_currentStats.UsageLimit.HasValue ? (_currentStats.UsageLimit.Value - _currentStats.TotalUsed).ToString() : "∞")" 
+                                ValueStyle="color: white;" />
+                 </Card>
+             </AntDesign.Col>
+         </AntDesign.Row>
+
+        @if (_currentStats.FirstUsedAt.HasValue)
+        {
+            <Card Title="Thông tin sử dụng" Style="margin-top: 16px;">
+                <Descriptions Bordered="true" Column="1">
+                    <DescriptionsItem Title="Lần đầu sử dụng">
+                        @_currentStats.FirstUsedAt.Value.ToString("dd/MM/yyyy HH:mm")
+                    </DescriptionsItem>
+                    <DescriptionsItem Title="Lần cuối sử dụng">
+                        @(_currentStats.LastUsedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa có")
+                    </DescriptionsItem>
+                    <DescriptionsItem Title="Giảm giá trung bình">
+                        @((_currentStats.TotalUsed > 0 ? _currentStats.TotalDiscountAmount / _currentStats.TotalUsed : 0).ToString("N0"))đ
+                    </DescriptionsItem>
+                </Descriptions>
+            </Card>
+        }
+        else
+        {
+            <Card Style="margin-top: 16px; text-align: center;">
+                <Empty Description="@("Voucher chưa được sử dụng lần nào")" />
+            </Card>
+        }
+    }
+</Modal>
+
+@code {
+    private IEnumerable<VoucherDto> _data = [];
+    private ITable _table = default!;
+    private bool _loading = true;
+    private string _searchText = "";
+    private bool _filterModalVisible = false;
+    private bool _createEditModalVisible = false;
+    private bool _statsModalVisible = false;
+    private VoucherFilterModel _filterModel = new();
+    private VoucherFilterModel _inlineFilterModel = new();
+    private Dictionary<string, string> _currentFilter = new();
+    private VoucherDto? editingVoucher = null;
+    private string _modalError = "";
+    private VoucherStatisticsDto? _currentStats = null;
+    private bool _isSubmitting = false;
+
+    private int pageSize = 10;
+    private int pageIndex = 1;
+    private int totalItems = 0;
+
+    // Form model
+    private VoucherFormModel _voucherForm = new();
+
+    private class VoucherFilterModel
+    {
+        public string SearchTerm { get; set; } = "";
+        public VoucherType? Type { get; set; }
+        public bool? IsActive { get; set; }
+        public DateTime[]? DateRange { get; set; }
+        public double? MinValue { get; set; }
+        public double? MaxValue { get; set; }
+    }
+
+    private class VoucherFormModel
+    {
+        public string Code { get; set; } = "";
+        public string? Description { get; set; }
+        public VoucherType Type { get; set; }
+        public double Value { get; set; }
+        public double? MinOrderAmount { get; set; }
+        public double? MaxDiscountAmount { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public int? UsageLimit { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Set default 7 days range on page load
+        var defaultDateRange = GetLast7DaysRange();
+        _inlineFilterModel.DateRange = defaultDateRange;
+        _filterModel.DateRange = defaultDateRange;
+
+        await LoadData();
+    }
+
+    private async Task ReloadData()
+    {
+        await LoadData();
+        MessageService.Success("Đã tải lại dữ liệu!");
+    }
+
+    private async Task OnInlineFilterChange()
+    {
+        await Task.Delay(300); // Debounce
+
+        BuildCurrentFilter();
+        pageIndex = 1;
+        await LoadData();
+    }
+
+    private void BuildCurrentFilter()
+    {
+        _currentFilter.Clear();
+
+        if (!string.IsNullOrEmpty(_searchText))
+            _currentFilter["searchTerm"] = _searchText;
+
+        if (_inlineFilterModel.Type.HasValue)
+            _currentFilter["type"] = _inlineFilterModel.Type.Value.ToString();
+        if (_inlineFilterModel.IsActive.HasValue)
+            _currentFilter["isActive"] = _inlineFilterModel.IsActive.Value.ToString();
+        if (_inlineFilterModel.DateRange != null && _inlineFilterModel.DateRange.Length == 2)
+        {
+            _currentFilter["startDate"] = _inlineFilterModel.DateRange[0].ToString("yyyy-MM-dd");
+            _currentFilter["endDate"] = _inlineFilterModel.DateRange[1].ToString("yyyy-MM-dd");
+        }
+        if (_inlineFilterModel.MinValue.HasValue)
+            _currentFilter["minValue"] = _inlineFilterModel.MinValue.Value.ToString();
+        if (_inlineFilterModel.MaxValue.HasValue)
+            _currentFilter["maxValue"] = _inlineFilterModel.MaxValue.Value.ToString();
+    }
+
+    private string[] GetDatePlaceholder()
+    {
+        var today = DateTime.Now;
+        var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+        return new[] { startOfWeek.ToString("dd/MM/yyyy"), today.ToString("dd/MM/yyyy") };
+    }
+
+    private DateTime[] GetDefaultPickerValue()
+    {
+        var today = DateTime.Now;
+        return new[] { today.AddDays(-7), today };
+    }
+
+    private DateTime[] GetTodayRange()
+    {
+        var today = DateTime.Now.Date;
+        return new[] { today, today };
+    }
+
+    private DateTime[] GetLast7DaysRange()
+    {
+        var today = DateTime.Now.Date;
+        return new[] { today.AddDays(-6), today };
+    }
+
+    private DateTime[] GetLast30DaysRange()
+    {
+        var today = DateTime.Now.Date;
+        return new[] { today.AddDays(-29), today };
+    }
+
+    private DateTime[] GetThisMonthRange()
+    {
+        var today = DateTime.Now.Date;
+        var startOfMonth = new DateTime(today.Year, today.Month, 1);
+        return new[] { startOfMonth, today };
+    }
+
+    private DateTime[] GetLastMonthRange()
+    {
+        var today = DateTime.Now.Date;
+        var startOfLastMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
+        var endOfLastMonth = startOfLastMonth.AddMonths(1).AddDays(-1);
+        return new[] { startOfLastMonth, endOfLastMonth };
+    }
+
+    private async Task SetDateRange(DateTime[] range)
+    {
+        _inlineFilterModel.DateRange = range;
+        await OnInlineFilterChange();
+    }
+
+    private void SetModalDateRange(DateTime[] range)
+    {
+        _filterModel.DateRange = range;
+    }
+
+    private bool HasActiveFilters()
+    {
+        if (!string.IsNullOrEmpty(_searchText)) return true;
+        if (_inlineFilterModel.Type.HasValue) return true;
+        if (_inlineFilterModel.IsActive.HasValue) return true;
+        if (_inlineFilterModel.MinValue.HasValue) return true;
+        if (_inlineFilterModel.MaxValue.HasValue) return true;
+
+        // Check if date range is different from default 7 days
+        if (_inlineFilterModel.DateRange != null && _inlineFilterModel.DateRange.Length == 2)
+        {
+            var defaultRange = GetLast7DaysRange();
+            var currentStart = _inlineFilterModel.DateRange[0].Date;
+            var currentEnd = _inlineFilterModel.DateRange[1].Date;
+            var defaultStart = defaultRange[0].Date;
+            var defaultEnd = defaultRange[1].Date;
+
+            if (currentStart != defaultStart || currentEnd != defaultEnd)
+                return true;
+        }
+
+        return false;
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        await Task.Delay(100);
+
+        try
+        {
+            var filter = new VoucherFilterRequest
+            {
+                SearchTerm = _currentFilter.GetValueOrDefault("searchTerm"),
+                Type = _currentFilter.ContainsKey("type") ? Enum.Parse<VoucherType>(_currentFilter["type"]) : null,
+                IsActive = _currentFilter.ContainsKey("isActive") ? bool.Parse(_currentFilter["isActive"]) : null
+            };
+
+            var result = await VoucherService.GetVouchersAsync(pageIndex, pageSize, filter);
+            _data = result.Data;
+            totalItems = result.ItemCount;
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải dữ liệu: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearch(string value)
+    {
+        _searchText = value;
+        BuildCurrentFilter();
+        pageIndex = 1;
+        await LoadData();
+    }
+
+    private async Task OnPageSizeChange(int newSize)
+    {
+        pageSize = newSize;
+        pageIndex = 1;
+        await LoadData();
+    }
+
+    private async Task OnTableChange(QueryModel<VoucherDto> queryModel)
+    {
+        pageIndex = queryModel.PageIndex;
+        pageSize = queryModel.PageSize;
+        await LoadData();
+    }
+
+    private void ShowFilterModal()
+    {
+        _filterModel = new VoucherFilterModel
+        {
+            SearchTerm = _currentFilter.GetValueOrDefault("searchTerm", ""),
+            Type = _currentFilter.ContainsKey("type") ? Enum.Parse<VoucherType>(_currentFilter["type"]) : null,
+            IsActive = _currentFilter.ContainsKey("isActive") ? bool.Parse(_currentFilter["isActive"]) : null,
+            MinValue = _currentFilter.ContainsKey("minValue") ? double.Parse(_currentFilter["minValue"]) : null,
+            MaxValue = _currentFilter.ContainsKey("maxValue") ? double.Parse(_currentFilter["maxValue"]) : null
+        };
+        _filterModalVisible = true;
+    }
+
+    private async Task OnFilterOk()
+    {
+        _currentFilter.Clear();
+
+        if (!string.IsNullOrEmpty(_filterModel.SearchTerm))
+            _currentFilter["searchTerm"] = _filterModel.SearchTerm;
+        if (_filterModel.Type.HasValue)
+            _currentFilter["type"] = _filterModel.Type.Value.ToString();
+        if (_filterModel.IsActive.HasValue)
+            _currentFilter["isActive"] = _filterModel.IsActive.Value.ToString();
+        if (_filterModel.MinValue.HasValue)
+            _currentFilter["minValue"] = _filterModel.MinValue.Value.ToString();
+        if (_filterModel.MaxValue.HasValue)
+            _currentFilter["maxValue"] = _filterModel.MaxValue.Value.ToString();
+
+        pageIndex = 1;
+        await LoadData();
+        _filterModalVisible = false;
+    }
+
+    private void OnFilterCancel()
+    {
+        _filterModalVisible = false;
+    }
+
+    private async Task ClearFilters()
+    {
+        _currentFilter.Clear();
+        _searchText = "";
+
+        // Reset filters but keep 7 days date range as default
+        var defaultDateRange = GetLast7DaysRange();
+        _filterModel = new VoucherFilterModel { DateRange = defaultDateRange };
+        _inlineFilterModel = new VoucherFilterModel { DateRange = defaultDateRange };
+
+        pageIndex = 1;
+        await LoadData();
+        MessageService.Success("Đã xóa bộ lọc!");
+    }
+
+    private void ShowCreateModal()
+    {
+        editingVoucher = null;
+        _voucherForm = new VoucherFormModel
+        {
+            Type = VoucherType.Percentage,
+            IsActive = true,
+            StartDate = DateTime.Now,
+            EndDate = DateTime.Now.AddDays(30)
+        };
+        _modalError = "";
+        _createEditModalVisible = true;
+    }
+
+    private void ShowEditModal(VoucherDto voucher)
+    {
+        editingVoucher = voucher;
+        _voucherForm = new VoucherFormModel
+        {
+            Code = voucher.Code,
+            Description = voucher.Description,
+            Type = voucher.Type,
+            Value = voucher.Value,
+            MinOrderAmount = voucher.MinOrderAmount,
+            MaxDiscountAmount = voucher.MaxDiscountAmount,
+            StartDate = voucher.StartDate,
+            EndDate = voucher.EndDate,
+            UsageLimit = voucher.UsageLimit,
+            IsActive = voucher.IsActive
+        };
+        _modalError = "";
+        _createEditModalVisible = true;
+    }
+
+    private async Task OnSaveVoucher()
+    {
+        if (_isSubmitting) return;
+
+        _modalError = "";
+        _isSubmitting = true;
+
+        try
+        {
+            if (editingVoucher == null)
+            {
+                // Create new voucher
+                var createRequest = new VoucherCreateRequest
+                {
+                    Code = _voucherForm.Code?.Trim().ToUpper() ?? "",
+                    Description = _voucherForm.Description?.Trim(),
+                    Type = _voucherForm.Type,
+                    Value = _voucherForm.Value,
+                    MinOrderAmount = _voucherForm.MinOrderAmount,
+                    MaxDiscountAmount = _voucherForm.MaxDiscountAmount,
+                    StartDate = _voucherForm.StartDate,
+                    EndDate = _voucherForm.EndDate,
+                    UsageLimit = _voucherForm.UsageLimit,
+                    IsActive = _voucherForm.IsActive
+                };
+
+                await VoucherService.CreateVoucherAsync(createRequest);
+            }
+            else
+            {
+                // Update existing voucher
+                var updateRequest = new VoucherUpdateRequest
+                {
+                    Description = _voucherForm.Description?.Trim(),
+                    Value = _voucherForm.Value,
+                    MinOrderAmount = _voucherForm.MinOrderAmount,
+                    MaxDiscountAmount = _voucherForm.MaxDiscountAmount,
+                    StartDate = _voucherForm.StartDate,
+                    EndDate = _voucherForm.EndDate,
+                    UsageLimit = _voucherForm.UsageLimit,
+                    IsActive = _voucherForm.IsActive
+                };
+
+                await VoucherService.UpdateVoucherAsync(editingVoucher.Code, updateRequest);
+            }
+
+            _createEditModalVisible = false;
+            await LoadData();
+            MessageService.Success("Lưu voucher thành công!");
+        }
+        catch (Exception ex)
+        {
+            _modalError = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private void OnCreateEditCancel()
+    {
+        _createEditModalVisible = false;
+        editingVoucher = null;
+        _modalError = "";
+    }
+
+    private async Task DeleteVoucher(string code)
+    {
+        try
+        {
+            await VoucherService.DeleteVoucherAsync(code);
+            await LoadData();
+            MessageService.Success("Xóa voucher thành công!");
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi xóa voucher: {ex.Message}");
+        }
+    }
+
+    private async Task ShowStatistics(string code)
+    {
+        try
+        {
+            _currentStats = await VoucherService.GetVoucherStatisticsAsync(code);
+            _statsModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi tải thống kê: {ex.Message}");
+        }
+    }
+
+    private void OnStatsCancel()
+    {
+        _statsModalVisible = false;
+        _currentStats = null;
+    }
+
+    private (BadgeStatus color, string text) GetVoucherStatusInfo(VoucherDto voucher)
+    {
+        if (voucher.IsActive && voucher.StartDate <= DateTime.Now && voucher.EndDate >= DateTime.Now)
+        {
+            return (BadgeStatus.Success, "Hoạt động");
+        }
+        else if (!voucher.IsActive)
+        {
+            return (BadgeStatus.Default, "Tạm dừng");
+        }
+        else if (voucher.StartDate > DateTime.Now)
+        {
+            return (BadgeStatus.Warning, "Chưa bắt đầu");
+        }
+        else
+        {
+            return (BadgeStatus.Error, "Hết hạn");
+        }
+    }
+}
+
+<style>
+    /* Search Controls Row */
+    .search-controls-row {
+        width: 100%;
+    }
+
+    .controls-right {
+        justify-content: flex-end;
+        width: 100%;
+    }
+
+    /* Responsive Filter Styles */
+    .desktop-filters {
+        display: block;
+    }
+
+    .filter-modal-btn {
+        display: none;
+    }
+
+    .hidden-xs {
+        display: inline;
+    }
+
+    .d-flex {
+        display: flex;
+    }
+
+    .justify-content-end {
+        justify-content: flex-end;
+    }
+
+    /* Mobile Responsive */
+    @@media (max-width: 991px) {
+        .desktop-filters {
+            display: none;
+        }
+
+        .filter-modal-btn {
+            display: inline-block;
+        }
+    }
+
+    @@media (max-width: 575px) {
+        .hidden-xs {
+            display: none;
+        }
+
+        .ant-col {
+            margin-bottom: 8px;
+        }
+
+        .d-flex {
+            justify-content: center;
+        }
+
+        .controls-right {
+            justify-content: center;
+        }
+    }
+
+    /* Improve table responsive */
+    .ant-table-wrapper {
+        overflow-x: auto;
+    }
+
+    /* Better spacing for controls */
+    .ant-space-item {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Button hover effects */
+    .ant-btn:hover {
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+</style> 
