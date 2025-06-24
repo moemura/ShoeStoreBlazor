@@ -11,5 +11,11 @@ namespace WebApp.Models.DTOs
         public string? BrandName { get; set; }
         public double Price { get; set; }
         public double? SalePrice { get; set; }
+        
+        // Promotion information
+        public double? PromotionPrice { get; set; }
+        public double? PromotionDiscount { get; set; }
+        public string? PromotionName { get; set; }
+        public bool HasActivePromotion { get; set; }
     }
 } 

@@ -1,5 +1,6 @@
 using WebApp.Services.Catches;
 using WebApp.Services.Products;
+using WebApp.Services.Promotions;
 
 namespace WebApp.Services.Carts;
 
@@ -7,11 +8,13 @@ public class CartService : ICartService
 {
     private readonly ICacheService _cacheService;
     private readonly IProductService _productService;
+    private readonly IPromotionService _promotionService;
     private const int CartExpireDays = 7;
-    public CartService(ICacheService cacheService, IProductService productService)
+    public CartService(ICacheService cacheService, IProductService productService, IPromotionService promotionService)
     {
         _cacheService = cacheService;
         _productService = productService;
+        _promotionService = promotionService;
     }
     private string GetCartKey(string userIdOrGuestId, bool isGuest = false)
         => isGuest ? $"cart:guest:{userIdOrGuestId}" : $"cart:{userIdOrGuestId}";
@@ -26,7 +29,15 @@ public class CartService : ICartService
                 UpdatedAt = DateTime.Now,
             };
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
-        return await _cacheService.GetOrSetAsync(key, async () => new CartDto { CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }, TimeSpan.FromDays(CartExpireDays));
+        var cart = await _cacheService.GetOrSetAsync(key, async () => new CartDto { CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }, TimeSpan.FromDays(CartExpireDays));
+        
+        // Apply promotions to all cart items
+        foreach (var item in cart.Items)
+        {
+            await ApplyPromotionToCartItem(item);
+        }
+        
+        return cart;
     }
 
     public async Task<CartItemDto> AddOrUpdateItem(string userIdOrGuestId, CartItemAddOrUpdateRequest request)
@@ -56,6 +67,9 @@ public class CartService : ICartService
                 Price = product?.Price ?? 0,
                 SalePrice = product?.SalePrice
             };
+            
+            // Apply promotion to cart item
+            await ApplyPromotionToCartItem(item);
             cart.Items.Add(item);
         }
         else
@@ -115,5 +129,22 @@ public class CartService : ICartService
         userCart.UpdatedAt = DateTime.UtcNow;
         await _cacheService.GetOrSetAsync(userKey, async () => userCart, TimeSpan.FromDays(CartExpireDays));
         await _cacheService.RemoveAsync(guestKey);
+    }
+
+    private async Task ApplyPromotionToCartItem(CartItemDto item)
+    {
+        if (string.IsNullOrEmpty(item.ProductId))
+            return;
+
+        var promotionPrice = await _promotionService.CalculatePromotionPriceAsync(item.ProductId, item.Price);
+        if (promotionPrice < item.Price)
+        {
+            item.PromotionPrice = promotionPrice;
+            item.PromotionDiscount = item.Price - promotionPrice;
+            item.HasActivePromotion = true;
+            
+            var bestPromotion = await _promotionService.GetBestPromotionForProductAsync(item.ProductId);
+            item.PromotionName = bestPromotion?.Name;
+        }
     }
 }

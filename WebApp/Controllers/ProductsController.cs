@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using WebApp.Services.Products;
+using WebApp.Services.Promotions;
 
 namespace WebApp.Endpoints
 {
@@ -8,7 +9,7 @@ namespace WebApp.Endpoints
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
-    public class ProductsController(IProductService service) : ControllerBase
+    public class ProductsController(IProductService service, IPromotionService promotionService) : ControllerBase
     {
         /// <summary>
         /// Lấy tất cả sản phẩm
@@ -96,6 +97,26 @@ namespace WebApp.Endpoints
 
             var result = await service.FilterAndPagin(pageIndex, pageSize, filter);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách promotion áp dụng cho sản phẩm
+        /// </summary>
+        /// <param name="id">ID của sản phẩm</param>
+        /// <returns>Danh sách promotion cho sản phẩm</returns>
+        /// <response code="200">Trả về danh sách promotion thành công</response>
+        /// <response code="404">Không tìm thấy sản phẩm</response>
+        [HttpGet("{id}/promotions")]
+        [ProducesResponseType(typeof(IEnumerable<PromotionDto>), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> GetProductPromotions(string id)
+        {
+            var product = await service.GetById(id);
+            if (product == null)
+                return NotFound();
+
+            var promotions = await promotionService.GetPromotionsForProductAsync(id);
+            return Ok(promotions);
         }
     }
 }

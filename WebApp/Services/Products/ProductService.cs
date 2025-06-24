@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using WebApp.Services.Catches;
+using WebApp.Services.Promotions;
 
 namespace WebApp.Services.Products
 {
@@ -7,12 +8,14 @@ namespace WebApp.Services.Products
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _dbContextFactory;
         private readonly ICacheService _cacheService;
+        private readonly IPromotionService _promotionService;
         private const string CACHE_PREFIX = "Product_";
 
-        public ProductService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory)
+        public ProductService(IDbContextFactory<ShoeStoreDbContext> dbContextFactory, ICacheService cacheService, IPromotionService promotionService)
         {
             _dbContextFactory = dbContextFactory;
-            _cacheService = new NoCacheService();
+            _cacheService = cacheService;
+            _promotionService = promotionService;
         }
 
         public async Task<IEnumerable<ProductDto>> GetAll()
@@ -33,7 +36,7 @@ namespace WebApp.Services.Products
 
         public async Task<ProductDto> GetById(string Id)
         {
-            var cacheKey = $"{CACHE_PREFIX}Id_{Id}";
+            var cacheKey = $"{CACHE_PREFIX}WithPromotion_Id_{Id}";
             return await _cacheService.GetOrSetAsync(cacheKey, async () =>
             {
                 using var dbContext = await _dbContextFactory.CreateDbContextAsync();
@@ -42,7 +45,25 @@ namespace WebApp.Services.Products
                     .Include(p => p.Brand)
                     .Include(p => p.Inventories)
                     .SingleOrDefaultAsync(p => p.Id == Id);
-                return product.ToDto();
+                
+                if (product == null)
+                    return null;
+
+                var productDto = product.ToDto();
+                
+                // Calculate promotion price
+                var promotionPrice = await _promotionService.CalculatePromotionPriceAsync(Id, productDto.Price);
+                if (promotionPrice < productDto.Price)
+                {
+                    productDto.PromotionPrice = promotionPrice;
+                    productDto.PromotionDiscount = productDto.Price - promotionPrice;
+                    productDto.HasActivePromotion = true;
+                    
+                    var bestPromotion = await _promotionService.GetBestPromotionForProductAsync(Id);
+                    productDto.PromotionName = bestPromotion?.Name;
+                }
+                
+                return productDto;
             });
         }
 
@@ -317,5 +338,26 @@ namespace WebApp.Services.Products
         }
 
         public Task RemoveProductCache() => _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
+
+        private async Task<IEnumerable<ProductDto>> ApplyPromotionsToProducts(IEnumerable<ProductDto> products)
+        {
+            var productList = products.ToList();
+            var tasks = productList.Select(async product =>
+            {
+                var promotionPrice = await _promotionService.CalculatePromotionPriceAsync(product.Id, product.Price);
+                if (promotionPrice < product.Price)
+                {
+                    product.PromotionPrice = promotionPrice;
+                    product.PromotionDiscount = product.Price - promotionPrice;
+                    product.HasActivePromotion = true;
+                    
+                    var bestPromotion = await _promotionService.GetBestPromotionForProductAsync(product.Id);
+                    product.PromotionName = bestPromotion?.Name;
+                }
+                return product;
+            });
+            
+            return await Task.WhenAll(tasks);
+        }
     }
 }

@@ -19,6 +19,10 @@ public class ShoeStoreDbContext : IdentityDbContext<AppUser>
     public virtual DbSet<PaymentTransaction> PaymentTransactions { get; set; }
     public virtual DbSet<Voucher> Vouchers { get; set; }
     public virtual DbSet<VoucherUsage> VoucherUsages { get; set; }
+    public virtual DbSet<Promotion> Promotions { get; set; }
+    public virtual DbSet<PromotionProduct> PromotionProducts { get; set; }
+    public virtual DbSet<PromotionCategory> PromotionCategories { get; set; }
+    public virtual DbSet<PromotionBrand> PromotionBrands { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -80,5 +84,75 @@ public class ShoeStoreDbContext : IdentityDbContext<AppUser>
             
         builder.Entity<VoucherUsage>()
             .HasIndex(vu => new { vu.VoucherCode, vu.GuestId });
+
+        // Promotion configuration
+        builder.Entity<Promotion>()
+            .HasKey(p => p.Id);
+            
+        builder.Entity<Promotion>()
+            .Property(p => p.Name)
+            .HasMaxLength(200)
+            .IsRequired();
+            
+        builder.Entity<Promotion>()
+            .Property(p => p.Description)
+            .HasMaxLength(500);
+            
+        builder.Entity<Promotion>()
+            .HasIndex(p => new { p.StartDate, p.EndDate });
+            
+        builder.Entity<Promotion>()
+            .HasIndex(p => p.IsActive);
+            
+        builder.Entity<Promotion>()
+            .HasIndex(p => p.Priority);
+
+        // PromotionProduct configuration
+        builder.Entity<PromotionProduct>()
+            .HasOne(pp => pp.Promotion)
+            .WithMany(p => p.PromotionProducts)
+            .HasForeignKey(pp => pp.PromotionId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        builder.Entity<PromotionProduct>()
+            .HasOne(pp => pp.Product)
+            .WithMany()
+            .HasForeignKey(pp => pp.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        builder.Entity<PromotionProduct>()
+            .HasIndex(pp => pp.ProductId);
+
+        // PromotionCategory configuration
+        builder.Entity<PromotionCategory>()
+            .HasOne(pc => pc.Promotion)
+            .WithMany(p => p.PromotionCategories)
+            .HasForeignKey(pc => pc.PromotionId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        builder.Entity<PromotionCategory>()
+            .HasOne(pc => pc.Category)
+            .WithMany()
+            .HasForeignKey(pc => pc.CategoryId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        builder.Entity<PromotionCategory>()
+            .HasIndex(pc => pc.CategoryId);
+
+        // PromotionBrand configuration
+        builder.Entity<PromotionBrand>()
+            .HasOne(pb => pb.Promotion)
+            .WithMany(p => p.PromotionBrands)
+            .HasForeignKey(pb => pb.PromotionId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        builder.Entity<PromotionBrand>()
+            .HasOne(pb => pb.Brand)
+            .WithMany()
+            .HasForeignKey(pb => pb.BrandId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        builder.Entity<PromotionBrand>()
+            .HasIndex(pb => pb.BrandId);
     }
 }

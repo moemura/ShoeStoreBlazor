@@ -10,6 +10,7 @@ using WebApp.Services.Payments;
 using WebApp.Services.Products;
 using WebApp.Services.Sizes;
 using WebApp.Services.Vouchers;
+using WebApp.Services.Promotions;
 
 namespace WebApp;
 
@@ -36,6 +37,9 @@ public static class ServiceContainer
         
         // Voucher Services
         services.AddScoped<IVoucherService, VoucherService>();
+        
+        // Promotion Services
+        services.AddScoped<IPromotionService, PromotionService>();
         
         // Payment Services
         services.AddScoped<IPaymentService, PaymentService>();

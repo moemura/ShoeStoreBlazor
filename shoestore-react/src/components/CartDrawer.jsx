@@ -23,7 +23,8 @@ const CartDrawer = ({ isOpen, onClose }) => {
   const cartItems = cart?.items || [];
   const subtotal = cartItems.reduce(
     (total, item) => {
-      const effectivePrice = item.salePrice || item.price || 0;
+      // Use promotion price if available, then sale price, then regular price
+      const effectivePrice = item.promotionPrice || item.salePrice || item.price || 0;
       return total + effectivePrice * item.quantity;
     },
     0
@@ -159,6 +160,30 @@ const CartDrawer = ({ isOpen, onClose }) => {
                         </button>
                       </div>
                       <p className="text-sm text-gray-500">Size: {item.size}</p>
+                      
+                      {/* Promotion Information */}
+                      {item.hasActivePromotion && item.promotionName && (
+                        <div className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded mt-1">
+                          🎉 {item.promotionName}
+                        </div>
+                      )}
+                      
+                      {/* Price Information */}
+                      <div className="flex items-center gap-2 mt-1">
+                        {item.hasActivePromotion && item.promotionPrice ? (
+                          <>
+                            <span className="text-sm font-medium text-purple-600">{formatPrice(item.promotionPrice)}</span>
+                            <span className="text-xs text-gray-500 line-through">{formatPrice(item.price)}</span>
+                          </>
+                        ) : item.salePrice ? (
+                          <>
+                            <span className="text-sm font-medium text-red-500">{formatPrice(item.salePrice)}</span>
+                            <span className="text-xs text-gray-500 line-through">{formatPrice(item.price)}</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium">{formatPrice(item.price)}</span>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center border rounded">
                           <button
@@ -178,7 +203,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
                           </button>
                         </div>
                         <p className="font-medium">
-                          {formatPrice((item.salePrice || item.price || 0) * item.quantity)}
+                          {formatPrice((item.promotionPrice || item.salePrice || item.price || 0) * item.quantity)}
                         </p>
                       </div>
                     </div>

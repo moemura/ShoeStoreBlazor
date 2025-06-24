@@ -120,7 +120,14 @@ const ProductCard = ({ product, isHovered, onMouseEnter, onMouseLeave }) => {
           />
         )}
 
-        {product.salePrice && (
+        {/* Promotion Badge */}
+        {product.hasActivePromotion && product.promotionDiscount && (
+          <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-md z-10 text-xs font-bold">
+            -{Math.round((product.promotionDiscount / product.price) * 100)}%
+          </div>
+        )}
+        {/* Sale Badge (fallback if no promotion) */}
+        {!product.hasActivePromotion && product.salePrice && (
           <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md z-10">
             -{Math.round((1 - product.salePrice / product.price) * 100)}%
           </div>
@@ -148,8 +155,21 @@ const ProductCard = ({ product, isHovered, onMouseEnter, onMouseLeave }) => {
         </button>
       </div>
       <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
+      
+      {/* Promotion Name */}
+      {product.hasActivePromotion && product.promotionName && (
+        <div className="text-xs text-purple-600 font-medium mb-1 bg-purple-50 px-2 py-1 rounded">
+          🎉 {product.promotionName}
+        </div>
+      )}
+      
       <div className="flex items-center gap-2">
-        {product.salePrice ? (
+        {product.hasActivePromotion && product.promotionPrice ? (
+          <>
+            <p className="font-medium text-purple-600 text-lg">{formatPrice(product.promotionPrice)}</p>
+            <p className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</p>
+          </>
+        ) : product.salePrice ? (
           <>
             <p className="font-medium text-red-500">{formatPrice(product.salePrice)}</p>
             <p className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</p>
