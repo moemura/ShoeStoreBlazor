@@ -126,23 +126,25 @@
 ### **1. Clone Repository**
 ```bash
 git clone https://github.com/nghuuan2803/ShoeStore.git
-cd ShoeStore
 ```
-### **2. Cấu hình Backend**
-```bash
-cd WebApp
-
-# Cập nhật connection string trong appsettings.json
-# Cấu hình email, payment gateway settings
-
-# Restore packages
-dotnet restore
+### **2. Cấu hình chuỗi kết nối database**
+```json
+# appsettings.json
+  "ConnectionStrings": {
+    "SqlServer": "Server=.;Database=ShoeStore;Trusted_Connection=True;TrustServerCertificate=True;"
 ```
-### **3. Setup Database**
+### **3. Tạo Database**
 ```bash
 # Sử dụng Migration
+cd ShoeStore
 cd WebApp
 dotnet ef database update
+```
+
+
+```bash
+# Restore packages
+dotnet restore
 ```
 
 ### **4. Cấu hình Frontend**
@@ -169,29 +171,13 @@ dotnet run
 ```bash
 cd shoestore-react
 npm run dev
-# Frontend sẽ chạy tại: https://localhost:3000
+# Frontend sẽ chạy tại: http://localhost:3000
 ```
-
-### **Production Build**
-
-**Backend:**
-```bash
-cd WebApp
-dotnet publish -c Release -o ./publish
-```
-
-**Frontend:**
-```bash
-cd shoestore-react
-npm run build
-# Build files sẽ được tạo trong thư mục dist/
-```
-
 
 ## 🎨 Giao diện
 
 ### **🛍️ Customer Interface (React)**
-- **Design System**: Shadcn UI + Tailwind CSS
+- **Design**: Shadcn UI + Tailwind CSS
 - **Theme**: Modern, minimal, responsive
 - **Components**: 
   - Header with navigation & cart
@@ -200,7 +186,7 @@ npm run build
   - Checkout flow with payment integration
   - Order tracking interface
 
-### **🏢 Admin Panel (Blazor)**
+### **🏢 Admin Panel (Blazor WebApp)**
 - **Design System**: AntDesign 1.4.0
 - **Layout**: Sidebar navigation + main content
 - **Features**:
@@ -208,18 +194,6 @@ npm run build
   - Data tables với pagination & sorting
   - Form validation & file uploads
   - Real-time notifications
-
-## 🔧 Cấu hình
-
-### **Database Connection**
-```json
-{
-  "ConnectionStrings": {
-    "SqlServer": "Server=.;Database=ShoeStore;Trusted_Connection=True;TrustServerCertificate=True;"
-  }
-}
-```
-
 
 ## 📱 Tính năng Thanh toán
 
@@ -229,12 +203,10 @@ npm run build
 - **Features**: QR Code, App-to-app payment
 - **Security**: HMAC-SHA256 signature
 - **Test Environment**: Sandbox mode
-- **Supported**: iOS, Android, Web
 
 #### **VnPay Gateway**
 - **Features**: ATM Cards, Internet Banking
 - **Security**: SHA-256 hash validation
-- **Banks**: Vietcombank, VietinBank, BIDV, v.v.
 - **Test Environment**: Sandbox mode
 
 ### **💰 Payment Flow**
