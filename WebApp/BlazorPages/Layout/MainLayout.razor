@@ -12,8 +12,9 @@
         <Layout>
             <Header Class="header">
                 <div class="header-left">
-                    <img class="logo" src="logo.png" />
-                    <h2 class="app-name">Shoe Store Admin</h2>
+                    @* <img class="logo" src="logo.png" /> *@
+                    <Avatar Size="AvatarSize.Large" Src="logo.png" />
+                    <h2 class="app-name">Admin Panel</h2>
                 </div>
                 <div class="header-right">
                     <Dropdown>
@@ -42,28 +43,28 @@
             </Header>
             <Layout>
                 <Sider Collapsible Theme="SiderTheme.Light" Width="250">
-                    <Menu Theme="MenuTheme.Light" DefaultSelectedKeys=@(new[]{"1"}) Mode="MenuMode.Inline">
+                    <Menu Theme="MenuTheme.Light" DefaultSelectedKeys=@(new[] { "1" }) Mode="MenuMode.Inline">
                         <MenuItem Key="1" RouterLink="/">
                             <Icon Type="@IconType.Outline.BarChart" />
                             <span>Tổng quan</span>
                         </MenuItem>
-                        <MenuItem Key="2" RouterLink="/orders">
+                        <MenuItem Key="2" RouterLink="/admin/orders">
                             <Icon Type="@IconType.Outline.ShoppingCart" />
                             <span>Đơn hàng</span>
                         </MenuItem>
-                        <MenuItem Key="3" RouterLink="/products">
+                        <MenuItem Key="3" RouterLink="/admin/products">
                             <Icon Type="@IconType.Outline.Appstore" />
                             <span>Sản phẩm</span>
                         </MenuItem>
-                        <MenuItem Key="4" RouterLink="/users">
+                        <MenuItem Key="4" RouterLink="/admin/users">
                             <Icon Type="@IconType.Outline.User" />
                             <span>Người dùng</span>
                         </MenuItem>
-                        <MenuItem Key="5" RouterLink="/categories">
-                            <Icon Type="@IconType.Outline.FieldTime" />
+                        <MenuItem Key="5" RouterLink="/admin/categories">
+                            <Icon Type="@IconType.Outline.OrderedList" />
                             <span>Danh mục</span>
                         </MenuItem>
-                        <MenuItem Key="6" RouterLink="/brands">
+                        <MenuItem Key="6" RouterLink="/admin/brands">
                             <Icon Type="@IconType.Outline.FieldTime" />
                             <span>Thương hiệu</span>
                         </MenuItem>
@@ -71,23 +72,19 @@
                             <Icon Type="@IconType.Outline.Barcode" />
                             <span>Mã giảm giá</span>
                         </MenuItem>
-                        <MenuItem Key="11" RouterLink="/admin/promotions">
+                        <MenuItem Key="8" RouterLink="/admin/promotions">
                             <Icon Type="@IconType.Outline.Gift" />
                             <span>Khuyến mãi</span>
                         </MenuItem>
-                        <MenuItem Key="8">
+                        <MenuItem Key="9" RouterLink="/admin/slides">
                             <Icon Type="@IconType.Outline.Sliders" />
-                            <span>Quảng cáo</span>
+                            <span>Slide - Banner</span>
                         </MenuItem>
-                        <MenuItem Key="9">
-                            <Icon Type="@IconType.Outline.Contacts" />
-                            <span>Thông tin liên hệ</span>
+                        <MenuItem Key="10" RouterLink="/admin/settings">
+                            <Icon Type="@IconType.Outline.Setting" />
+                            <span>Cài đặt</span>
                         </MenuItem>
-                        <MenuItem Key="10">
-                            <Icon Type="@IconType.Outline.Safety" />
-                            <span>Phân quyền</span>
-                        </MenuItem>
-                        <MenuItem Key="12" RouterLink="swagger">
+                        <MenuItem Key="11" RouterLink="swagger">
                             <Icon Type="@IconType.Outline.Safety" />
                             <span>Swagger</span>
                         </MenuItem>
@@ -148,9 +145,9 @@
         transition: all 0.3s ease;
     }
 
-    .user-dropdown-btn:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
+        .user-dropdown-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
 
     .username {
         font-weight: 500;
