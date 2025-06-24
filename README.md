@@ -153,11 +153,9 @@ cd shoestore-react
 
 # Install dependencies
 npm install
-
+```
 
 ## 🚀 Khởi chạy
-
-### **Development Mode**
 
 **Terminal 1 - Backend:**
 ```bash
