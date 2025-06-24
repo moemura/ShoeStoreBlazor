@@ -83,7 +83,7 @@
 │   ├── 📄 src/pages/          # Page Components
 │   ├── 🔧 src/services/       # API Services
 │   └── 🎯 src/context/        # State Management
-├── 🗄️ sqlscripts/            # Database Scripts
+├── 🗄️ sqlscripts/             # Database Scripts
 ├── 📋 Plan/                   # Planning Documents
 └── 🧪 WebApp.Tests/           # Unit Tests
 ```
@@ -94,7 +94,7 @@
 - **Framework**: ASP.NET Core 9.0
 - **UI Admin**: Blazor Server + AntDesign 1.4.0
 - **Database**: SQL Server + Entity Framework Core 9.0
-- **Authentication**: JWT Bearer + ASP.NET Identity
+- **Authentication**: JWT Bearer/Cookie + ASP.NET Identity
 - **Caching**: Memory Cache / Redis
 - **File Storage**: Imgur API
 - **Email**: SMTP Gmail
@@ -125,21 +125,10 @@
 
 ### **1. Clone Repository**
 ```bash
-git clone https://github.com/your-username/ShoeStore.git
+git clone https://github.com/nghuuan2803/ShoeStore.git
 cd ShoeStore
 ```
-
-### **2. Setup Database**
-```bash
-# Tạo database từ script
-sqlcmd -S . -i sqlscripts/db.sql
-
-# Hoặc sử dụng Migration
-cd WebApp
-dotnet ef database update
-```
-
-### **3. Cấu hình Backend**
+### **2. Cấu hình Backend**
 ```bash
 cd WebApp
 
@@ -149,6 +138,12 @@ cd WebApp
 # Restore packages
 dotnet restore
 ```
+### **3. Setup Database**
+```bash
+# Sử dụng Migration
+cd WebApp
+dotnet ef database update
+```
 
 ### **4. Cấu hình Frontend**
 ```bash
@@ -157,9 +152,6 @@ cd shoestore-react
 # Install dependencies
 npm install
 
-# Tạo file .env.local (optional)
-echo "VITE_API_URL=https://localhost:5001" > .env.local
-```
 
 ## 🚀 Khởi chạy
 
@@ -177,7 +169,7 @@ dotnet run
 ```bash
 cd shoestore-react
 npm run dev
-# Frontend sẽ chạy tại: https://localhost:5001
+# Frontend sẽ chạy tại: https://localhost:3000
 ```
 
 ### **Production Build**
@@ -195,69 +187,6 @@ npm run build
 # Build files sẽ được tạo trong thư mục dist/
 ```
 
-## 📖 API Documentation
-
-### **Swagger UI**
-- **URL**: `https://localhost:5001/swagger`
-- **Environment**: Development mode
-
-### **Main API Endpoints**
-
-#### **🔐 Authentication**
-```http
-POST /api/auth/login          # Đăng nhập
-POST /api/auth/register       # Đăng ký
-POST /api/auth/refresh        # Refresh token
-POST /api/auth/logout         # Đăng xuất
-POST /api/auth/forgot-password # Quên mật khẩu
-POST /api/auth/reset-password  # Đặt lại mật khẩu
-```
-
-#### **👤 Account Management**
-```http
-GET    /api/account/profile   # Thông tin tài khoản
-PUT    /api/account/profile   # Cập nhật thông tin
-POST   /api/account/change-password # Đổi mật khẩu
-```
-
-#### **📦 Products**
-```http
-GET    /api/products          # Danh sách sản phẩm
-GET    /api/products/{id}     # Chi tiết sản phẩm
-GET    /api/products/filter   # Lọc sản phẩm
-GET    /api/products/search   # Tìm kiếm sản phẩm
-```
-
-#### **🛒 Cart**
-```http
-GET    /api/cart              # Lấy giỏ hàng
-POST   /api/cart/items        # Thêm sản phẩm
-PUT    /api/cart/items/{id}   # Cập nhật số lượng
-DELETE /api/cart/items/{id}   # Xóa sản phẩm
-```
-
-#### **📋 Orders**
-```http
-GET    /api/orders            # Danh sách đơn hàng
-GET    /api/orders/{id}       # Chi tiết đơn hàng
-POST   /api/orders            # Tạo đơn hàng
-PUT    /api/orders/{id}/status # Cập nhật trạng thái
-```
-
-#### **🎫 Vouchers**
-```http
-GET    /api/vouchers          # Danh sách voucher khả dụng
-POST   /api/vouchers/validate # Kiểm tra mã voucher
-GET    /api/vouchers/history  # Lịch sử sử dụng
-```
-
-#### **💳 Payment**
-```http
-POST   /api/payment/momo      # Thanh toán MoMo
-POST   /api/payment/vnpay     # Thanh toán VnPay
-GET    /api/payment/momo-return # MoMo callback
-GET    /api/payment/vnpay-return # VnPay callback
-```
 
 ## 🎨 Giao diện
 
@@ -291,31 +220,6 @@ GET    /api/payment/vnpay-return # VnPay callback
 }
 ```
 
-### **JWT Settings**
-```json
-{
-  "JwtSettings": {
-    "SecretKey": "Your-Secret-Key-Min-32-Chars",
-    "Issuer": "ShoeStore",
-    "Audience": "ShoeStoreClient",
-    "ExpiryInMinutes": 60,
-    "RefreshTokenExpiryInDays": 7
-  }
-}
-```
-
-### **Email Configuration**
-```json
-{
-  "SmtpSettings": {
-    "Server": "smtp.gmail.com",
-    "Port": 587,
-    "Username": "your-email@gmail.com",
-    "Password": "your-app-password",
-    "EnableSsl": true
-  }
-}
-```
 
 ## 📱 Tính năng Thanh toán
 
@@ -363,77 +267,11 @@ GET    /api/payment/vnpay-return # VnPay callback
 4. **Fixed 200K Off** - Giảm 200,000 VND cố định
 5. **VIP 30%** - Giảm 30% (priority cao)
 
-## 🧪 Testing
-
-### **Unit Tests**
-```bash
-cd WebApp.Tests
-dotnet test
-```
-
-### **Test Coverage**
-- ✅ **Services**: BrandService, CategoryService, ProductService
-- ✅ **Controllers**: BrandsController, CategoriesController, ProductsController
-- ✅ **Authentication**: AuthService testing
-- ✅ **Data Layer**: Entity mappings & validations
-
-### **API Testing**
-```bash
-# Test promotion system
-curl -X GET "https://localhost:5001/api/tests/active-promotions"
-
-# Test product with promotion
-curl -X GET "https://localhost:5001/api/tests/promotion-price/product-id"
-```
-
-## 📚 Tài liệu
-
-### **📋 Planning Documents**
-- `Plan/Promotion.Plan.md` - Kế hoạch hệ thống khuyến mãi
-- `Plan/Cart.Plan.md` - Kế hoạch giỏ hàng
-- `Plan/Order.Plan.md` - Kế hoạch đơn hàng
-- `Plan/Voucher.Plan.md` - Kế hoạch voucher
-- `Plan/eWalletPayment.Plan.md` - Kế hoạch thanh toán
-
-### **📖 Feature Documentation**
-- `PROMOTION_IMPLEMENTATION_SUMMARY.md` - Tổng kết hệ thống khuyến mãi
-- `WebApp/Services/Promotions/README.md` - Documentation chi tiết
-- `WebApp/Services/Vouchers/README.md` - Voucher system guide
-
-### **🔌 API Documentation**
-- `WebApp/Services/Promotions/PromotionAPI_Documentation.md`
-- `WebApp/Services/Vouchers/Phase3_API_Documentation.md`
-
-## 🤝 Đóng góp
-
-### **Development Workflow**
-1. **Fork** repository
-2. **Create** feature branch: `git checkout -b feature/ten-tinh-nang`
-3. **Commit** changes: `git commit -m 'Add: tính năng mới'`
-4. **Push** branch: `git push origin feature/ten-tinh-nang`
-5. **Create** Pull Request
-
-### **Code Standards**
-- **C# Conventions**: PascalCase cho classes/methods, camelCase cho variables
-- **JavaScript Conventions**: camelCase cho functions/variables
-- **Git Commit**: `Add:`, `Fix:`, `Update:`, `Remove:` prefix
-- **Documentation**: Update README cho features mới
-
-### **Project Structure Rules**
-- **Backend**: Feature-based folders trong `Services/`, `Controllers/`
-- **Frontend**: Component-based structure trong `src/components/`
-- **Database**: Migrations trong `Data/Migrations/`
-- **Testing**: Mirror structure trong `WebApp.Tests/`
 
 ---
 
 <div align="center">
 
-**🏆 ShoeStore - Hệ thống thương mại điện tử chuyên nghiệp**
-
-Made with ❤️ by ShoeStore Team
-
-[![GitHub](https://img.shields.io/badge/GitHub-ShoeStore-181717)](https://github.com/your-username/ShoeStore)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+Made with ❤️ by annghdev
 
 </div>
