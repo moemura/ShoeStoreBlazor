@@ -4,18 +4,21 @@ using WebApp.Endpoints;
 using WebApp.Models;
 using WebApp.Models.DTOs;
 using WebApp.Services.Products;
+using WebApp.Services.Promotions;
 
 namespace WebApp.Tests.ApiTests
 {
     public class ProductsControllerTests
     {
         private readonly Mock<IProductService> _mockProductService;
+        private readonly Mock<IPromotionService> _mockPromotionService;
         private readonly ProductsController _controller;
 
         public ProductsControllerTests()
         {
             _mockProductService = new Mock<IProductService>();
-            _controller = new ProductsController(_mockProductService.Object);
+            _mockPromotionService = new Mock<IPromotionService>();
+            _controller = new ProductsController(_mockProductService.Object, _mockPromotionService.Object);
         }
 
         [Fact]

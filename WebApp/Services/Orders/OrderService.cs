@@ -1,6 +1,7 @@
 using WebApp.Services.Carts;
 using WebApp.Services.Products;
 using WebApp.Services.Vouchers;
+using WebApp.Services.Promotions;
 using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Services.Orders;
@@ -13,6 +14,7 @@ public class OrderService : IOrderService
     private readonly OrderTotalStrategyFactory _orderTotalStrategyFactory;
     private readonly PaymentStrategyFactory _paymentStrategyFactory;
     private readonly IVoucherService _voucherService;
+    private readonly IPromotionService _promotionService;
 
     public OrderService(
         IDbContextFactory<ShoeStoreDbContext> dbContextFactory, 
@@ -20,7 +22,8 @@ public class OrderService : IOrderService
         IProductService productService, 
         OrderTotalStrategyFactory orderTotalStrategyFactory,
         PaymentStrategyFactory paymentStrategyFactory,
-        IVoucherService voucherService)
+        IVoucherService voucherService,
+        IPromotionService promotionService)
     {
         _dbContextFactory = dbContextFactory;
         _cartService = cartService;
@@ -28,27 +31,47 @@ public class OrderService : IOrderService
         _orderTotalStrategyFactory = orderTotalStrategyFactory;
         _paymentStrategyFactory = paymentStrategyFactory;
         _voucherService = voucherService;
+        _promotionService = promotionService;
     }
 
     public async Task<OrderCreationResult> CreateOrder(OrderCreateRequest req, string? userId, string? guestId)
     {
         using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         
-        // 1. Kiểm tra tồn kho từng item
+        // 1. Kiểm tra tồn kho từng item và tính tổng để xác định promotions
         var orderItems = new List<OrderItem>();
+        double totalForPromotionCalculation = 0;
+        
+        // First pass: calculate base total for promotion validation
         foreach (var item in req.Items)
         {
             var inventory = await _productService.CheckInventory(item.InventoryId, item.Quantity);
             if (inventory == null)
                 throw new Exception($"Sản phẩm hoặc số lượng không đủ cho inventoryId {item.InventoryId}");
-            // Lấy giá thực tế từ inventory/product
-            double price = inventory.Product?.SalePrice ?? inventory.Product?.Price ?? 0; // TODO: Lấy giá đúng
+            
+            double basePrice = inventory.Product?.Price ?? 0;
+            totalForPromotionCalculation += basePrice * item.Quantity;
+        }
+        
+        // Second pass: create order items with dynamic promotion pricing
+        foreach (var item in req.Items)
+        {
+            var inventory = await _productService.CheckInventory(item.InventoryId, item.Quantity);
+            if (inventory == null)
+                throw new Exception($"Sản phẩm hoặc số lượng không đủ cho inventoryId {item.InventoryId}");
+                
+            double basePrice = inventory.Product?.Price ?? 0;
+            
+            // Apply dynamic promotion pricing with order total validation
+            double finalPrice = await _promotionService.CalculatePromotionPriceWithOrderValidationAsync(
+                inventory.Product?.Id ?? "", basePrice, totalForPromotionCalculation);
+            
             orderItems.Add(new OrderItem
             {
                 InventoryId = item.InventoryId,
-                Price = price,
+                Price = finalPrice, // Use promotion price instead of base price
                 Quantity = item.Quantity,
-                Subtotal = price * item.Quantity
+                Subtotal = finalPrice * item.Quantity
             });
         }
         // 2. Tính tổng tiền (dùng strategy, có thể mở rộng discount/voucher)

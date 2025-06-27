@@ -23,7 +23,9 @@ public class BaseOrderTotalStrategy : IOrderTotalStrategy
         {
             var inventory = await _dbContext.Inventories.Include(i => i.Product).FirstOrDefaultAsync(i => i.Id == item.InventoryId);
             if (inventory == null) continue;
-            double price = inventory.Product?.SalePrice ?? inventory.Product?.Price ?? 0;
+            
+            // Use Price as base price, not SalePrice (SalePrice is deprecated in favor of dynamic promotions)
+            double price = inventory.Product?.Price ?? 0;
             total += item.Quantity * price;
         }
         return total;
@@ -90,20 +92,49 @@ public class PromotionDecorator : IOrderTotalStrategy
 
     public async Task<double> CalculateTotal(OrderCreateRequest req)
     {
-        double total = 0;
+        // First calculate the base total to determine if order meets minimum requirements
+        double baseTotal = 0;
+        var productPrices = new Dictionary<string, (double originalPrice, int quantity)>();
         
         foreach (var item in req.Items)
         {
             var inventory = await _dbContext.Inventories.Include(i => i.Product).FirstOrDefaultAsync(i => i.Id == item.InventoryId);
             if (inventory == null) continue;
             
-            double originalPrice = inventory.Product?.SalePrice ?? inventory.Product?.Price ?? 0;
-            double promotionPrice = await _promotionService.CalculatePromotionPriceAsync(inventory.Product?.Id ?? "", originalPrice);
+            // Use Price as base price, not SalePrice (SalePrice is deprecated)
+            double originalPrice = inventory.Product?.Price ?? 0;
+            baseTotal += item.Quantity * originalPrice;
             
-            total += item.Quantity * promotionPrice;
+            if (inventory.Product?.Id != null)
+            {
+                productPrices[inventory.Product.Id] = (originalPrice, item.Quantity);
+            }
         }
         
-        return total;
+        // Now calculate with promotions that meet the minimum order amount requirement
+        double totalWithPromotions = 0;
+        
+        foreach (var item in req.Items)
+        {
+            var inventory = await _dbContext.Inventories.Include(i => i.Product).FirstOrDefaultAsync(i => i.Id == item.InventoryId);
+            if (inventory == null) continue;
+            
+            if (inventory.Product?.Id != null && productPrices.ContainsKey(inventory.Product.Id))
+            {
+                var (originalPrice, quantity) = productPrices[inventory.Product.Id];
+                
+                // Use the new method that validates MinOrderAmount
+                double promotionPrice = await _promotionService.CalculatePromotionPriceWithOrderValidationAsync(
+                    inventory.Product.Id, 
+                    originalPrice, 
+                    baseTotal
+                );
+                
+                totalWithPromotions += quantity * promotionPrice;
+            }
+        }
+        
+        return totalWithPromotions;
     }
 }
 

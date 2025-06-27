@@ -1,70 +1,82 @@
+using WebApp.Models.DTOs;
+using WebApp.Models.Entities;
+
 namespace WebApp.Models.Mapping;
 
 public static class PromotionMapping
 {
-    public static PromotionDto ToDto(this Promotion promotion)
+    public static PromotionDto ToDto(this Promotion entity)
     {
+        if (entity == null) return null;
+
         return new PromotionDto
         {
-            Id = promotion.Id,
-            Name = promotion.Name,
-            Description = promotion.Description,
-            Type = promotion.Type.ToString(),
-            DiscountValue = promotion.DiscountValue,
-            MaxDiscountAmount = promotion.MaxDiscountAmount,
-            StartDate = promotion.StartDate,
-            EndDate = promotion.EndDate,
-            IsActive = promotion.IsActive,
-            Priority = promotion.Priority,
-            ProductIds = promotion.PromotionProducts?.Select(pp => pp.ProductId).ToList() ?? new(),
-            CategoryIds = promotion.PromotionCategories?.Select(pc => pc.CategoryId).ToList() ?? new(),
-            BrandIds = promotion.PromotionBrands?.Select(pb => pb.BrandId).ToList() ?? new(),
-            CreatedAt = promotion.CreatedAt,
-            UpdatedAt = promotion.UpdatedAt
+            Id = entity.Id,
+            Name = entity.Name,
+            Description = entity.Description,
+            Type = entity.Type.ToString(),
+            Scope = entity.Scope.ToString(),
+            DiscountValue = entity.DiscountValue,
+            MaxDiscountAmount = entity.MaxDiscountAmount,
+            MinOrderAmount = entity.MinOrderAmount,
+            StartDate = entity.StartDate,
+            EndDate = entity.EndDate,
+            IsActive = entity.IsActive,
+            Priority = entity.Priority,
+            ProductIds = entity.PromotionProducts?.Select(pp => pp.ProductId).ToList() ?? new List<string>(),
+            CategoryIds = entity.PromotionCategories?.Select(pc => pc.CategoryId).ToList() ?? new List<string>(),
+            BrandIds = entity.PromotionBrands?.Select(pb => pb.BrandId).ToList() ?? new List<string>(),
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt,
+            DateRange = new[] { entity.StartDate, entity.EndDate }
         };
     }
 
     public static Promotion ToEntity(this CreatePromotionRequest request)
     {
-        if (!Enum.TryParse<PromotionType>(request.Type, out var promotionType))
-            throw new ArgumentException($"Invalid promotion type: {request.Type}");
+        if (request == null) return null;
+
+        if (!Enum.TryParse<PromotionType>(request.Type, true, out var promotionType))
+        {
+            throw new ArgumentException("Invalid Promotion Type");
+        }
 
         return new Promotion
         {
-            Id = Guid.CreateVersion7().ToString(),
+            Id = Guid.NewGuid().ToString(),
             Name = request.Name,
             Description = request.Description,
             Type = promotionType,
+            Scope = Enum.Parse<PromotionScope>(request.Scope, true),
             DiscountValue = request.DiscountValue,
             MaxDiscountAmount = request.MaxDiscountAmount,
+            MinOrderAmount = request.MinOrderAmount,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Priority = request.Priority,
-            IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
     }
 
-    public static Promotion ToEntity(this PromotionDto dto)
+    public static void UpdateEntity(this CreatePromotionRequest dto, Promotion promotion)
     {
-        if (!Enum.TryParse<PromotionType>(dto.Type, out var promotionType))
-            throw new ArgumentException($"Invalid promotion type: {dto.Type}");
+        if (dto == null || promotion == null) return;
 
-        return new Promotion
+        if (!Enum.TryParse<PromotionType>(dto.Type, true, out var promotionType))
         {
-            Id = dto.Id,
-            Name = dto.Name,
-            Description = dto.Description,
-            Type = promotionType,
-            DiscountValue = dto.DiscountValue,
-            MaxDiscountAmount = dto.MaxDiscountAmount,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
-            IsActive = dto.IsActive,
-            Priority = dto.Priority,
-            CreatedAt = dto.CreatedAt,
-            UpdatedAt = dto.UpdatedAt
-        };
+            throw new ArgumentException("Invalid Promotion Type");
+        }
+        
+        promotion.Name = dto.Name;
+        promotion.Description = dto.Description;
+        promotion.Type = Enum.Parse<PromotionType>(dto.Type, true);
+        promotion.Scope = Enum.Parse<PromotionScope>(dto.Scope, true);
+        promotion.DiscountValue = dto.DiscountValue;
+        promotion.MaxDiscountAmount = dto.MaxDiscountAmount;
+        promotion.MinOrderAmount = dto.MinOrderAmount;
+        promotion.StartDate = dto.StartDate;
+        promotion.EndDate = dto.EndDate;
+        promotion.Priority = dto.Priority;
     }
 } 

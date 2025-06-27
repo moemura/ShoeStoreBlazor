@@ -1,0 +1,82 @@
+@using WebApp.Models.Entities
+@using AntDesign
+
+<Card Class="desktop-filters" Style="margin-bottom: 16px;">
+    <AntDesign.Row Gutter="16">
+        <AntDesign.Col Span="8">
+            <Text Strong>Loại khuyến mãi:</Text>
+            <Select TItem="PromotionType?"
+                    TItemValue="PromotionType?"
+                    Value="@FilterType"
+                    ValueChanged="@((PromotionType? value) => OnFilterChangedCallback(FilterTypeChanged, value))"
+                    Placeholder="Tất cả loại"
+                    AllowClear="true"
+                    Style="width: 100%; margin-top: 4px;">
+                <SelectOptions>
+                    <SelectOption TItem="PromotionType?" TItemValue="PromotionType?" Value="PromotionType.Percentage" Label="Phần trăm" />
+                    <SelectOption TItem="PromotionType?" TItemValue="PromotionType?" Value="PromotionType.FixedAmount" Label="Số tiền cố định" />
+                </SelectOptions>
+            </Select>
+        </AntDesign.Col>
+
+        <AntDesign.Col Span="8">
+            <Text Strong>Trạng thái:</Text>
+            <Select TItem="bool?"
+                    TItemValue="bool?"
+                    Value="@FilterActive"
+                    ValueChanged="@((bool? value) => OnFilterChangedCallback(FilterActiveChanged, value))"
+                    Placeholder="Tất cả trạng thái"
+                    AllowClear="true"
+                    Style="width: 100%; margin-top: 4px;">
+                <SelectOptions>
+                    <SelectOption TItem="bool?" TItemValue="bool?" Value="true" Label="Hoạt động" />
+                    <SelectOption TItem="bool?" TItemValue="bool?" Value="false" Label="Không hoạt động" />
+                </SelectOptions>
+            </Select>
+        </AntDesign.Col>
+
+        <AntDesign.Col Span="8">
+            <Text Strong>Mức độ ưu tiên:</Text>
+            <div style="margin-top: 4px;">
+                <AntDesign.Row Gutter="8">
+                    <AntDesign.Col Span="12">
+                        <AntDesign.InputNumber Value="@MinPriority"
+                                               ValueChanged="@((int? value) => OnFilterChangedCallback(MinPriorityChanged, value))"
+                                               Placeholder="Từ"
+                                               Min="1"
+                                               Style="width: 100%" />
+                    </AntDesign.Col>
+                    <AntDesign.Col Span="12">
+                        <AntDesign.InputNumber Value="@MaxPriority"
+                                               ValueChanged="@((int? value) => OnFilterChangedCallback(MaxPriorityChanged, value))"
+                                               Placeholder="Đến"
+                                               Min="1"
+                                               Style="width: 100%" />
+                    </AntDesign.Col>
+                </AntDesign.Row>
+            </div>
+        </AntDesign.Col>
+    </AntDesign.Row>
+</Card>
+
+@code {
+    [Parameter] public PromotionType? FilterType { get; set; }
+    [Parameter] public EventCallback<PromotionType?> FilterTypeChanged { get; set; }
+
+    [Parameter] public bool? FilterActive { get; set; }
+    [Parameter] public EventCallback<bool?> FilterActiveChanged { get; set; }
+
+    [Parameter] public int? MinPriority { get; set; }
+    [Parameter] public EventCallback<int?> MinPriorityChanged { get; set; }
+
+    [Parameter] public int? MaxPriority { get; set; }
+    [Parameter] public EventCallback<int?> MaxPriorityChanged { get; set; }
+
+    [Parameter] public EventCallback OnFilterChanged { get; set; }
+
+    private async Task OnFilterChangedCallback<T>(EventCallback<T> callback, T value)
+    {
+        await callback.InvokeAsync(value);
+        await OnFilterChanged.InvokeAsync();
+    }
+} 

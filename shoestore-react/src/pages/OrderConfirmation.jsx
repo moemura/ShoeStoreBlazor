@@ -73,7 +73,7 @@ const OrderConfirmation = () => {
           </div>
           <Link
             to="/products"
-            className="inline-block bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+            className="inline-block bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg"
           >
             Tiếp tục mua sắm
           </Link>
@@ -89,7 +89,7 @@ const OrderConfirmation = () => {
           <h1 className="text-2xl font-bold mb-4">Không tìm thấy đơn hàng</h1>
           <Link
             to="/products"
-            className="inline-block bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+            className="inline-block bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg"
           >
             Tiếp tục mua sắm
           </Link>
@@ -279,7 +279,7 @@ const OrderConfirmation = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             to="/products"
-            className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-center"
+            className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-300 text-center shadow-lg"
           >
             Tiếp tục mua sắm
           </Link>

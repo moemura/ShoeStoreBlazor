@@ -12,6 +12,8 @@ public class PromotionDto
     public DateTime EndDate { get; set; }
     public bool IsActive { get; set; }
     public int Priority { get; set; }
+    public string Scope { get; set; } = string.Empty;
+    public double? MinOrderAmount { get; set; }
     public List<string> ProductIds { get; set; } = new();
     public List<string> CategoryIds { get; set; } = new();
     public List<string> BrandIds { get; set; } = new();
@@ -32,6 +34,8 @@ public class CreatePromotionRequest
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public int Priority { get; set; } = 1;
+    public string Scope { get; set; } = "All";
+    public double? MinOrderAmount { get; set; }
     public List<string> ProductIds { get; set; } = new();
     public List<string> CategoryIds { get; set; } = new();
     public List<string> BrandIds { get; set; } = new();

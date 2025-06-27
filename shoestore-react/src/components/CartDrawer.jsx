@@ -224,7 +224,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
               className={`block w-full text-center py-3 rounded-md font-medium ${
                 cartItems.length === 0
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-black text-white hover:bg-gray-900'
+                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg'
               }`}
               onClick={cartItems.length === 0 ? (e) => e.preventDefault() : onClose}
             >

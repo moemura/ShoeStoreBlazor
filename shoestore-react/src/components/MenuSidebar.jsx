@@ -59,7 +59,7 @@ const MenuSidebar = ({ isOpen, onClose, filters, onFilterChange, categories, bra
                     onClick={() => onFilterChange('categoryId', category.id === filters.categoryId ? '' : category.id)}
                     className={`w-full flex items-center gap-3 ${isOpen ? 'p-3' : 'p-2'} rounded-lg transition-colors ${
                       filters.categoryId === category.id 
-                        ? 'bg-black text-white' 
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
                         : 'hover:bg-gray-100'
                     }`}
                     title={!isOpen ? category.name : undefined}
@@ -107,7 +107,7 @@ const MenuSidebar = ({ isOpen, onClose, filters, onFilterChange, categories, bra
                     onClick={() => onFilterChange('brandId', brand.id === filters.brandId ? '' : brand.id)}
                     className={`w-full flex items-center gap-3 ${isOpen ? 'p-3' : 'p-2'} rounded-lg transition-colors ${
                       filters.brandId === brand.id 
-                        ? 'bg-black text-white' 
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
                         : 'hover:bg-gray-100'
                     }`}
                     title={!isOpen ? brand.name : undefined}

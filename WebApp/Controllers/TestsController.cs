@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Services.Promotions;
+using WebApp.Services.Products;
 
 namespace WebApp.Endpoints
 {
@@ -12,10 +13,12 @@ namespace WebApp.Endpoints
     public class TestsController : ControllerBase
     {
         private readonly IPromotionService _promotionService;
+        private readonly IProductService _productService;
 
-        public TestsController(IPromotionService promotionService)
+        public TestsController(IPromotionService promotionService, IProductService productService)
         {
             _promotionService = promotionService;
+            _productService = productService;
         }
 
         /// <summary>
@@ -80,6 +83,41 @@ namespace WebApp.Endpoints
             {
                 return BadRequest(new { Error = ex.Message });
             }
+        }
+
+        [HttpPost("clear-promotion-cache")]
+        public async Task<IActionResult> ClearPromotionCache()
+        {
+            await _promotionService.RemovePromotionCache();
+            await _productService.RemoveProductCache();
+            return Ok(new { message = "Promotion and Product caches cleared successfully!" });
+        }
+
+        [HttpGet("test-promotion/{productId}")]
+        public async Task<IActionResult> TestPromotion(string productId, [FromQuery] double? orderTotal = null)
+        {
+            var product = orderTotal.HasValue 
+                ? await _productService.GetByIdWithDynamicPricing(productId, orderTotal.Value)
+                : await _productService.GetById(productId);
+
+            if (product == null)
+                return NotFound();
+
+            var promotions = orderTotal.HasValue
+                ? await _promotionService.GetValidPromotionsForOrderAsync(new[] { productId }, orderTotal.Value)
+                : await _promotionService.GetPromotionsForProductAsync(productId);
+
+            var bestPromotion = orderTotal.HasValue
+                ? await _promotionService.GetBestPromotionForProductWithOrderValidationAsync(productId, orderTotal.Value)
+                : await _promotionService.GetBestPromotionForProductAsync(productId);
+
+            return Ok(new
+            {
+                Product = product,
+                ApplicablePromotions = promotions,
+                BestPromotion = bestPromotion,
+                OrderTotal = orderTotal
+            });
         }
     }
 }

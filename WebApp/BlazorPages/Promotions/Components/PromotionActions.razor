@@ -1,0 +1,54 @@
+@using Microsoft.AspNetCore.Components
+@using AntDesign
+
+<AntDesign.Row Gutter="16" Style="margin-bottom: 16px;" Class="search-controls-row">
+    <AntDesign.Col Xs="24" Sm="14" Md="16" Lg="18">
+        <Space Style="width: 100%;">
+            <SpaceItem>
+                <Input Value="@SearchText"
+                       Placeholder="Tìm theo tên khuyến mãi..."
+                       ValueChanged="@(async (string value) => await OnSearch.InvokeAsync(value))"
+                       Style="width: 300px;"
+                       Suffix="@searchIcon" />
+            </SpaceItem>
+            <SpaceItem>
+                @if (HasActiveFilters)
+                {
+                    <Button Type="@ButtonType.Default" OnClick="() => OnClearFilters.InvokeAsync()">
+                        <Icon Type="clear" />
+                        <span class="hidden-xs">Xóa lọc</span>
+                    </Button>
+                }
+            </SpaceItem>
+        </Space>
+    </AntDesign.Col>
+
+    <AntDesign.Col Xs="24" Sm="10" Md="8" Lg="6" Class="d-flex justify-content-end">
+        <Space Style="width: 100%;" Class="controls-right">
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="() => OnReload.InvokeAsync()" Loading="Loading">
+                    <Icon Type="reload" />
+                    <span class="hidden-xs">Tải lại</span>
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" OnClick="() => OnCreate.InvokeAsync()">
+                    <Icon Type="plus" />
+                    <span class="hidden-xs">Tạo Khuyến mãi</span>
+                </Button>
+            </SpaceItem>
+        </Space>
+    </AntDesign.Col>
+</AntDesign.Row>
+
+@code {
+    private RenderFragment searchIcon =@<Icon Type="search" />;
+
+    [Parameter] public string SearchText { get; set; } = "";
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool HasActiveFilters { get; set; }
+    [Parameter] public EventCallback<string> OnSearch { get; set; }
+    [Parameter] public EventCallback OnReload { get; set; }
+    [Parameter] public EventCallback OnCreate { get; set; }
+    [Parameter] public EventCallback OnClearFilters { get; set; }
+} 

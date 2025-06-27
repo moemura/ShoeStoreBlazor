@@ -61,7 +61,8 @@ const Checkout = () => {
   }, [cartLoading, cart, cartItems.length, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
   const subtotal = cartItems.reduce(
     (total, item) => {
-      const effectivePrice = item.salePrice || item.price || 0;
+      // Use promotion price if available, then sale price, then regular price
+      const effectivePrice = item.promotionPrice || item.salePrice || item.price || 0;
       return total + effectivePrice * item.quantity;
     },
     0
@@ -354,7 +355,7 @@ const Checkout = () => {
                       <div className="flex justify-between items-center mt-1">
                         <span className="text-sm">x{item.quantity}</span>
                         <span className="font-medium">
-                          {formatPrice((item.salePrice || item.price || 0) * item.quantity)}
+                          {formatPrice((item.promotionPrice || item.salePrice || item.price || 0) * item.quantity)}
                         </span>
                       </div>
                     </div>
@@ -398,7 +399,7 @@ const Checkout = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || orderLoading || cartItems.length === 0}
-                className="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-6 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 text-white py-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
               >
                 {isSubmitting || orderLoading ? (
                   <div className="flex items-center justify-center">

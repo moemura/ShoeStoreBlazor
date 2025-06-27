@@ -10,8 +10,11 @@ public class Product : BaseEntity<string>
     public string Description { get; set; } = default!;
     [Range(0,100000000)]
     public double Price { get; set; }
+    
+    [Obsolete("SalePrice is deprecated. Use dynamic promotion pricing instead. This field will be removed in future versions.")]
     [Range(0,100000000)]
     public double? SalePrice { get; set; }
+    
     public string? MainImage { get; set; }
     public string? Image { get; set; }
     public int LikeCount { get; set; }

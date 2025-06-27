@@ -9,8 +9,17 @@ const Promotions = () => {
   useEffect(() => {
     const fetchPromotions = async () => {
       try {
-        const response = await productService.getAll(1, 12, { hasSale: true });
-        setProducts(response.data || []);
+        // Use a reasonable order total to show all available promotions
+        const estimatedOrderTotal = 1000000; // 1 million VND to show available promotions
+        
+        const response = await productService.getAll(1, 12, {}, estimatedOrderTotal);
+        
+        // Filter products that have active promotions
+        const promotionProducts = (response.data || response || []).filter(product => 
+          product.hasActivePromotion || product.salePrice
+        );
+        
+        setProducts(promotionProducts);
       } catch (error) {
         console.error('Error fetching promotions:', error);
         setError('Không thể tải danh sách khuyến mãi');
@@ -76,15 +85,43 @@ const Promotions = () => {
                   alt={product.name}
                   className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md">
-                  {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
-                </div>
+                {/* Promotion Badge */}
+                {product.hasActivePromotion && product.promotionDiscount && (
+                  <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-md text-xs font-bold">
+                    {Math.round((product.promotionDiscount / product.price) * 100)}% OFF
+                  </div>
+                )}
+                {/* Sale Badge (fallback if no promotion) */}
+                {!product.hasActivePromotion && product.salePrice && (
+                  <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md">
+                    {Math.round((1 - product.salePrice / product.price) * 100)}% OFF
+                  </div>
+                )}
               </div>
               <h3 className="font-medium text-gray-900 mb-1">{product.name}</h3>
               <p className="text-sm text-gray-500 mb-2">{product.brandName}</p>
+              
+              {/* Promotion Name */}
+              {product.hasActivePromotion && product.promotionName && (
+                <div className="text-xs text-purple-600 font-medium mb-1 bg-purple-50 px-2 py-1 rounded">
+                  🎉 {product.promotionName}
+                </div>
+              )}
+              
               <div className="flex items-center gap-2">
-                <p className="font-medium text-red-500">{formatPrice(product.salePrice)}</p>
-                <p className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</p>
+                {product.hasActivePromotion && product.promotionPrice ? (
+                  <>
+                    <p className="font-medium text-purple-600">{formatPrice(product.promotionPrice)}</p>
+                    <p className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</p>
+                  </>
+                ) : product.salePrice ? (
+                  <>
+                    <p className="font-medium text-red-500">{formatPrice(product.salePrice)}</p>
+                    <p className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</p>
+                  </>
+                ) : (
+                  <p className="font-medium text-gray-900">{formatPrice(product.price)}</p>
+                )}
               </div>
               <div className="mt-2 text-sm text-gray-500">
                 Còn lại: {product.totalQuantity} sản phẩm

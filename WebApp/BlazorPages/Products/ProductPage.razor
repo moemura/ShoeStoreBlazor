@@ -7,6 +7,7 @@
 @using WebApp.Services.Files
 @using WebApp.Services.Products
 @using WebApp.Services.Sizes
+@using WebApp.Services.Promotions
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Policy = "RequireAdminRole")]
 @inject IProductService productService
@@ -14,6 +15,7 @@
 @inject IBrandService brandService
 @inject ISizeService sizeService
 @inject IImageStorageService imgurService
+@inject IPromotionService promotionService
 @inject MessageService MessageService
 
 
@@ -90,8 +92,36 @@
     <PropertyColumn Property="c=>c.Name" Title="Tên sản phẩm" />
     <PropertyColumn Property="c=>c.CategoryName" Title="Danh mục" />
     <PropertyColumn Property="c=>c.BrandName" Title="Thương hiệu" />
-    <PropertyColumn Property="c=>c.Price" Title="Giá" Format="N0" />
-    <PropertyColumn Property="c=>c.SalePrice" Title="Giá khuyến mãi" Format="N0" />
+    <ActionColumn Title="Giá">
+        @{
+            var promotionPrice = _promotionPriceCache.GetValueOrDefault(context.Id);
+            var hasPromotion = promotionPrice.HasValue && promotionPrice.Value < context.Price;
+        }
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            @if (hasPromotion)
+            {
+                <div>
+                    <span style="text-decoration: line-through; color: #8c8c8c; font-size: 12px;">
+                        @context.Price.ToString("N0")đ
+                    </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #ff4d4f; font-weight: 600; font-size: 14px;">
+                        @promotionPrice.Value.ToString("N0")đ
+                    </span>
+                    <span style="background-color: #ff4d4f; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 500;">
+                        -@(Math.Round((context.Price - promotionPrice.Value) / context.Price * 100))%
+                    </span>
+                </div>
+            }
+            else
+            {
+                <span style="font-weight: 500; font-size: 14px;">
+                    @context.Price.ToString("N0")đ
+                </span>
+            }
+        </div>
+    </ActionColumn>
     <PropertyColumn Property="c=>c.LikeCount" Title="Lượt thích" />
     <PropertyColumn Property="c=>c.TotalQuantity" Title="Số lượng" />
     <ActionColumn Title="Tồn kho">
@@ -168,9 +198,6 @@
             </FormItem>
             <FormItem Label="Giá">
                 <AntDesign.InputNumber @bind-Value="@_newProduct.Price" Style="width: 100%" />
-            </FormItem>
-            <FormItem Label="Giá khuyến mãi">
-                <AntDesign.InputNumber @bind-Value="@_newProduct.SalePrice" Style="width: 100%" />
             </FormItem>
             </Col>
             <Col Span="12">
@@ -298,9 +325,6 @@
             </FormItem>
             <FormItem Label="Giá">
                 <AntDesign.InputNumber @bind-Value="@_editProduct.Price" Style="width: 100%" />
-            </FormItem>
-            <FormItem Label="Giá khuyến mãi">
-                <AntDesign.InputNumber @bind-Value="@_editProduct.SalePrice" Style="width: 100%" />
             </FormItem>
             </Col>
             <Col Span="12">
@@ -493,6 +517,7 @@
     private bool _inventoryModalVisible = false;
     private ProductDto _currentProduct = new();
     private Dictionary<string, int> _inventoryModel = new();
+    private Dictionary<string, double?> _promotionPriceCache = new();
 
     private class FilterModel
     {
@@ -516,6 +541,26 @@
         _sizes = (await sizeService.GetAll()).Select(p => p.Id).ToList();
     }
 
+    private async Task<double?> GetPromotionPriceAsync(ProductDto product)
+    {
+        if (_promotionPriceCache.TryGetValue(product.Id, out var cachedPrice))
+        {
+            return cachedPrice;
+        }
+
+        try
+        {
+            // Calculate promotion price using promotion service
+            var promotionPrice = await promotionService.CalculatePromotionPriceAsync(product.Id, product.Price);
+            _promotionPriceCache[product.Id] = promotionPrice;
+            return promotionPrice;
+        }
+        catch
+        {
+            _promotionPriceCache[product.Id] = null;
+            return null;
+        }
+    }
 
     private async Task LoadCategories()
     {
@@ -548,6 +593,7 @@
     private async Task LoadData()
     {
         _loading = true;
+        _promotionPriceCache.Clear();
 
         await Task.Delay(100);
         try
@@ -562,6 +608,20 @@
             }
             _data = _paginationData.Data;
             totalItems = _paginationData.ItemCount;
+
+            // Pre-calculate promotion prices for all products
+            foreach (var product in _data)
+            {
+                try
+                {
+                    var promotionPrice = await promotionService.CalculatePromotionPriceAsync(product.Id, product.Price);
+                    _promotionPriceCache[product.Id] = promotionPrice;
+                }
+                catch
+                {
+                    _promotionPriceCache[product.Id] = null;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -650,7 +710,6 @@
                 Name = product.Name,
                 Description = product.Description,
                 Price = product.Price,
-                SalePrice = product.SalePrice,
                 CategoryId = product.CategoryId,
                 BrandId = product.BrandId,
                 MainImage = product.MainImage,

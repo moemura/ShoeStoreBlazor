@@ -28,6 +28,11 @@ public class Promotion : BaseEntity<string>
     [Range(1, 10, ErrorMessage = "Độ ưu tiên phải từ 1 đến 10")]
     public int Priority { get; set; } = 1;
     
+    public PromotionScope Scope { get; set; } = PromotionScope.All;
+    
+    [Range(0, double.MaxValue, ErrorMessage = "Giá trị đơn hàng tối thiểu phải lớn hơn hoặc bằng 0")]
+    public double? MinOrderAmount { get; set; } // Đơn hàng tối thiểu để áp dụng khuyến mãi
+    
     // Navigation properties
     public virtual ICollection<PromotionProduct>? PromotionProducts { get; set; }
     public virtual ICollection<PromotionCategory>? PromotionCategories { get; set; }
@@ -39,4 +44,12 @@ public enum PromotionType
     Percentage = 1,      // Giảm theo %
     FixedAmount = 2,     // Giảm số tiền cố định
     BuyXGetY = 3        // Mua X tặng Y (future enhancement)
+}
+
+public enum PromotionScope
+{
+    All,
+    Product,
+    Category,
+    Brand
 } 

@@ -26,7 +26,7 @@ public class PromotionService : IPromotionService
                 .Include(p => p.PromotionCategories)
                 .Include(p => p.PromotionBrands)
                 .FirstOrDefaultAsync(p => p.Id == id);
-            
+
             return promotion?.ToDto();
         });
     }
@@ -41,10 +41,10 @@ public class PromotionService : IPromotionService
                 .Include(p => p.PromotionProducts)
                 .Include(p => p.PromotionCategories)
                 .Include(p => p.PromotionBrands)
-                .OrderByDescending(p => p.Priority)
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
                 .ThenByDescending(p => p.CreatedAt)
                 .ToListAsync();
-            
+
             return promotions.Select(p => p.ToDto());
         });
     }
@@ -61,9 +61,9 @@ public class PromotionService : IPromotionService
                 .Include(p => p.PromotionCategories)
                 .Include(p => p.PromotionBrands)
                 .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
-                .OrderByDescending(p => p.Priority)
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
                 .ToListAsync();
-            
+
             return promotions.Select(p => p.ToDto());
         });
     }
@@ -75,11 +75,11 @@ public class PromotionService : IPromotionService
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
             var now = DateTime.UtcNow;
-            
+
             // Get product to find category and brand
             var product = await dbContext.Products
                 .FirstOrDefaultAsync(p => p.Id == productId);
-            
+
             if (product == null)
                 return Enumerable.Empty<PromotionDto>();
 
@@ -91,9 +91,9 @@ public class PromotionService : IPromotionService
                            (p.PromotionProducts!.Any(pp => pp.ProductId == productId) ||
                             (product.CategoryId != null && p.PromotionCategories!.Any(pc => pc.CategoryId == product.CategoryId)) ||
                             (product.BrandId != null && p.PromotionBrands!.Any(pb => pb.BrandId == product.BrandId))))
-                .OrderByDescending(p => p.Priority)
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
                 .ToListAsync();
-            
+
             return promotions.Select(p => p.ToDto());
         });
     }
@@ -105,16 +105,16 @@ public class PromotionService : IPromotionService
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
             var now = DateTime.UtcNow;
-            
+
             var promotions = await dbContext.Promotions
                 .Include(p => p.PromotionProducts)
                 .Include(p => p.PromotionCategories)
                 .Include(p => p.PromotionBrands)
                 .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now &&
                            p.PromotionCategories!.Any(pc => pc.CategoryId == categoryId))
-                .OrderByDescending(p => p.Priority)
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
                 .ToListAsync();
-            
+
             return promotions.Select(p => p.ToDto());
         });
     }
@@ -126,16 +126,16 @@ public class PromotionService : IPromotionService
         {
             using var dbContext = await _dbContextFactory.CreateDbContextAsync();
             var now = DateTime.UtcNow;
-            
+
             var promotions = await dbContext.Promotions
                 .Include(p => p.PromotionProducts)
                 .Include(p => p.PromotionCategories)
                 .Include(p => p.PromotionBrands)
                 .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now &&
                            p.PromotionBrands!.Any(pb => pb.BrandId == brandId))
-                .OrderByDescending(p => p.Priority)
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
                 .ToListAsync();
-            
+
             return promotions.Select(p => p.ToDto());
         });
     }
@@ -150,9 +150,9 @@ public class PromotionService : IPromotionService
             return originalPrice;
 
         return PromotionCalculator.CalculateDiscountedPrice(
-            originalPrice, 
-            promotionType, 
-            bestPromotion.DiscountValue, 
+            originalPrice,
+            promotionType,
+            bestPromotion.DiscountValue,
             bestPromotion.MaxDiscountAmount);
     }
 
@@ -161,19 +161,123 @@ public class PromotionService : IPromotionService
         var cacheKey = $"{CACHE_PREFIX}BestFor_{productId}";
         return await _cacheService.GetOrSetAsync(cacheKey, async () =>
         {
-            var promotions = await GetPromotionsForProductAsync(productId);
-            
-            if (!promotions.Any())
+            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            var now = DateTime.UtcNow;
+
+            // Get product to find category and brand
+            var product = await dbContext.Products
+                .FirstOrDefaultAsync(p => p.Id == productId);
+
+            if (product == null)
                 return null;
 
-            // Convert DTOs back to entities for calculation (or we could calculate directly from DTOs)
-            var bestPromotionDto = promotions
-                .OrderByDescending(p => p.Priority)
-                .ThenByDescending(p => 
+            // Get all promotions that could apply to this product
+            var promotions = await dbContext.Promotions
+                .Include(p => p.PromotionProducts)
+                .Include(p => p.PromotionCategories)
+                .Include(p => p.PromotionBrands)
+                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now &&
+                           (p.Scope == PromotionScope.All ||
+                            (p.Scope == PromotionScope.Product && p.PromotionProducts!.Any(pp => pp.ProductId == productId)) ||
+                            (p.Scope == PromotionScope.Category && product.CategoryId != null && p.PromotionCategories!.Any(pc => pc.CategoryId == product.CategoryId)) ||
+                            (p.Scope == PromotionScope.Brand && product.BrandId != null && p.PromotionBrands!.Any(pb => pb.BrandId == product.BrandId))))
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
+                .ThenByDescending(p => p.DiscountValue) // Order by discount value as secondary sort
+                .FirstOrDefaultAsync();
+
+            return promotions?.ToDto();
+        });
+    }
+
+    public async Task<IEnumerable<PromotionDto>> GetValidPromotionsForOrderAsync(IEnumerable<string> productIds, double orderTotal)
+    {
+        var cacheKey = $"{CACHE_PREFIX}ValidForOrder_{string.Join("_", productIds.OrderBy(x => x))}_{orderTotal}";
+        return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+        {
+            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            var now = DateTime.UtcNow;
+
+            // Get all products with their categories and brands
+            var products = await dbContext.Products
+                .Where(p => productIds.Contains(p.Id))
+                .ToListAsync();
+
+            var productCategoryIds = products.Where(p => p.CategoryId != null).Select(p => p.CategoryId!).Distinct().ToList();
+            var productBrandIds = products.Where(p => p.BrandId != null).Select(p => p.BrandId!).Distinct().ToList();
+
+            var promotions = await dbContext.Promotions
+                .Include(p => p.PromotionProducts)
+                .Include(p => p.PromotionCategories)
+                .Include(p => p.PromotionBrands)
+                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now &&
+                           (!p.MinOrderAmount.HasValue || orderTotal >= p.MinOrderAmount.Value) &&
+                           (p.Scope == PromotionScope.All ||
+                            (p.Scope == PromotionScope.Product && p.PromotionProducts!.Any(pp => productIds.Contains(pp.ProductId))) ||
+                            (p.Scope == PromotionScope.Category && productCategoryIds.Any(cId => p.PromotionCategories!.Any(pc => pc.CategoryId == cId))) ||
+                            (p.Scope == PromotionScope.Brand && productBrandIds.Any(bId => p.PromotionBrands!.Any(pb => pb.BrandId == bId)))))
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
+                .ToListAsync();
+
+            return promotions.Select(p => p.ToDto());
+        });
+    }
+
+    public async Task<double> CalculatePromotionPriceWithOrderValidationAsync(string productId, double originalPrice, double orderTotal)
+    {
+        var bestPromotion = await GetBestPromotionForProductWithOrderValidationAsync(productId, orderTotal);
+        if (bestPromotion == null)
+            return originalPrice;
+
+        if (!Enum.TryParse<PromotionType>(bestPromotion.Type, out var promotionType))
+            return originalPrice;
+
+        return PromotionCalculator.CalculateDiscountedPrice(
+            originalPrice,
+            promotionType,
+            bestPromotion.DiscountValue,
+            bestPromotion.MaxDiscountAmount);
+    }
+
+    public async Task<PromotionDto?> GetBestPromotionForProductWithOrderValidationAsync(string productId, double orderTotal)
+    {
+        var cacheKey = $"{CACHE_PREFIX}BestForWithOrderValidation_{productId}_{orderTotal}";
+        return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+        {
+            var validPromotions = await GetValidPromotionsForOrderAsync(new[] { productId }, orderTotal);
+            
+            // Get product's category and brand for category/brand promotions
+            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            var product = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == productId);
+
+            // Filter promotions that apply to this specific product
+            var applicablePromotions = validPromotions.Where(p =>
+            {
+                switch (p.Scope)
+                {
+                    case "All":
+                        return true;
+                    case "Product":
+                        return p.ProductIds.Contains(productId);
+                    case "Category":
+                        return product?.CategoryId != null && p.CategoryIds.Contains(product.CategoryId);
+                    case "Brand":
+                        return product?.BrandId != null && p.BrandIds.Contains(product.BrandId);
+                    default:
+                        return false;
+                }
+            });
+
+            if (!applicablePromotions.Any())
+                return null;
+
+            // Get the best promotion based on priority and discount amount
+            var bestPromotionDto = applicablePromotions
+                .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
+                .ThenByDescending(p =>
                 {
                     if (Enum.TryParse<PromotionType>(p.Type, out var type))
                     {
-                        return PromotionCalculator.CalculateDiscount(100, type, p.DiscountValue, p.MaxDiscountAmount); // Use 100 as reference price
+                        return PromotionCalculator.CalculateDiscount(100, type, p.DiscountValue, p.MaxDiscountAmount);
                     }
                     return 0;
                 })
@@ -191,149 +295,256 @@ public class PromotionService : IPromotionService
     public async Task<PromotionDto> CreateAsync(CreatePromotionRequest request)
     {
         using var context = await _dbContextFactory.CreateDbContextAsync();
-        
-        var promotion = new Promotion
+
+        var promotion = request.ToEntity();
+        var scope = (PromotionScope)promotion.Scope;
+
+        switch (scope)
         {
-            Id = Guid.NewGuid().ToString(),
-            Name = request.Name,
-            Description = request.Description,
-            Type = Enum.Parse<PromotionType>(request.Type),
-            DiscountValue = request.DiscountValue,
-            MaxDiscountAmount = request.MaxDiscountAmount,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            Priority = request.Priority,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            case PromotionScope.All:
+                promotion.PromotionProducts = null;
+                promotion.PromotionCategories = null;
+                promotion.PromotionBrands = null;
+                break;
+            case PromotionScope.Product:
+                promotion.PromotionCategories = null;
+                promotion.PromotionBrands = null;
+                if (request.ProductIds.Any())
+                {
+                    promotion.PromotionProducts = request.ProductIds.Select(pId => new PromotionProduct { Id = Guid.NewGuid().ToString(), ProductId = pId, PromotionId = promotion.Id }).ToList();
+                }
+                break;
+            case PromotionScope.Category:
+                promotion.PromotionProducts = null;
+                promotion.PromotionBrands = null;
+                if (request.CategoryIds.Any())
+                {
+                    promotion.PromotionCategories = request.CategoryIds.Select(cId => new PromotionCategory { Id = Guid.NewGuid().ToString(), CategoryId = cId, PromotionId = promotion.Id }).ToList();
+                }
+                break;
+            case PromotionScope.Brand:
+                promotion.PromotionProducts = null;
+                promotion.PromotionCategories = null;
+                if (request.BrandIds.Any())
+                {
+                    promotion.PromotionBrands = request.BrandIds.Select(bId => new PromotionBrand { Id = Guid.NewGuid().ToString(), BrandId = bId, PromotionId = promotion.Id }).ToList();
+                }
+                break;
+        }
 
         context.Promotions.Add(promotion);
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            string er = e.Message;
+            string tr = e.StackTrace;
+            throw;
+        }
 
-        // Add junction table entries
-        await AddJunctionEntries(context, promotion.Id, request.ProductIds, request.CategoryIds, request.BrandIds);
-        
         await RemovePromotionCache();
-        return promotion.ToDto();
+
+        // Refetch to get related data
+        var result = await GetByIdAsync(promotion.Id);
+        return result!;
     }
 
     public async Task<PromotionDto> UpdateAsync(string id, CreatePromotionRequest request)
     {
         using var context = await _dbContextFactory.CreateDbContextAsync();
-        
-        var promotion = await context.Promotions.FindAsync(id);
+
+        var promotion = await context.Promotions
+            .Include(p => p.PromotionProducts)
+            .Include(p => p.PromotionCategories)
+            .Include(p => p.PromotionBrands)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
         if (promotion == null)
             throw new ArgumentException("Promotion not found");
 
-        promotion.Name = request.Name;
-        promotion.Description = request.Description;
-        promotion.Type = Enum.Parse<PromotionType>(request.Type);
-        promotion.DiscountValue = request.DiscountValue;
-        promotion.MaxDiscountAmount = request.MaxDiscountAmount;
-        promotion.StartDate = request.StartDate;
-        promotion.EndDate = request.EndDate;
-        promotion.Priority = request.Priority;
+        var originalScope = promotion.Scope;
+
+        // Update main properties
+        request.UpdateEntity(promotion);
         promotion.UpdatedAt = DateTime.UtcNow;
 
-        // Remove existing junction entries
-        await RemoveJunctionEntries(context, id);
-        
-        // Add new junction entries
-        await AddJunctionEntries(context, id, request.ProductIds, request.CategoryIds, request.BrandIds);
-        
+        var newScope = promotion.Scope;
+
+        // Logic to update junction tables based on scope
+        if (newScope != PromotionScope.Product) promotion.PromotionProducts?.Clear();
+        if (newScope != PromotionScope.Category) promotion.PromotionCategories?.Clear();
+        if (newScope != PromotionScope.Brand) promotion.PromotionBrands?.Clear();
+
+        switch (newScope)
+        {
+            case PromotionScope.Product:
+                promotion.PromotionProducts ??= new List<PromotionProduct>();
+                var existingProductIds = promotion.PromotionProducts.Select(p => p.ProductId).ToHashSet();
+                var productsToAdd = request.ProductIds.Where(id => !existingProductIds.Contains(id));
+                foreach (var pId in productsToAdd)
+                {
+                    promotion.PromotionProducts.Add(new PromotionProduct { Id = Guid.NewGuid().ToString(), ProductId = pId });
+                }
+                break;
+            case PromotionScope.Category:
+                promotion.PromotionCategories ??= new List<PromotionCategory>();
+                var existingCategoryIds = promotion.PromotionCategories.Select(p => p.CategoryId).ToHashSet();
+                var categoriesToAdd = request.CategoryIds.Where(id => !existingCategoryIds.Contains(id));
+                foreach (var cId in categoriesToAdd)
+                {
+                    promotion.PromotionCategories.Add(new PromotionCategory { Id = Guid.NewGuid().ToString(), CategoryId = cId });
+                }
+                break;
+            case PromotionScope.Brand:
+                promotion.PromotionBrands ??= new List<PromotionBrand>();
+                var existingBrandIds = promotion.PromotionBrands.Select(p => p.BrandId).ToHashSet();
+                var brandsToAdd = request.BrandIds.Where(id => !existingBrandIds.Contains(id));
+                foreach (var bId in brandsToAdd)
+                {
+                    promotion.PromotionBrands.Add(new PromotionBrand { Id = Guid.NewGuid().ToString(), BrandId = bId });
+                }
+                break;
+        }
+
+        context.Promotions.Update(promotion);
         await context.SaveChangesAsync();
         await RemovePromotionCache();
-        
-        return promotion.ToDto();
+
+        var result = await GetByIdAsync(id);
+        return result!;
     }
 
     public async Task<bool> DeleteAsync(string id)
     {
         using var context = await _dbContextFactory.CreateDbContextAsync();
-        
+
         var promotion = await context.Promotions.FindAsync(id);
         if (promotion == null)
             return false;
 
-        // Remove junction entries first
-        await RemoveJunctionEntries(context, id);
-        
         context.Promotions.Remove(promotion);
         await context.SaveChangesAsync();
         await RemovePromotionCache();
-        
+
         return true;
     }
 
     public async Task<bool> ToggleActiveStatusAsync(string id, bool isActive)
     {
         using var context = await _dbContextFactory.CreateDbContextAsync();
-        
         var promotion = await context.Promotions.FindAsync(id);
-        if (promotion == null)
-            return false;
+        if (promotion == null) return false;
 
         promotion.IsActive = isActive;
         promotion.UpdatedAt = DateTime.UtcNow;
-        
         await context.SaveChangesAsync();
         await RemovePromotionCache();
-        
         return true;
     }
 
-    private async Task AddJunctionEntries(ShoeStoreDbContext context, string promotionId, 
-        List<string> productIds, List<string> categoryIds, List<string> brandIds)
+    // Batch processing methods for better performance
+    public async Task<Dictionary<string, double>> CalculatePromotionPricesForProductsAsync(IEnumerable<string> productIds, IEnumerable<double> originalPrices, double? orderTotal = null)
     {
-        // Add product entries
-        foreach (var productId in productIds)
+        var productIdList = productIds.ToList();
+        var originalPriceList = originalPrices.ToList();
+        
+        if (productIdList.Count != originalPriceList.Count)
+            throw new ArgumentException("ProductIds and OriginalPrices must have the same count");
+            
+        var cacheKey = orderTotal.HasValue 
+            ? $"{CACHE_PREFIX}BatchCalc_{string.Join("_", productIdList.OrderBy(x => x))}_{orderTotal.Value}"
+            : $"{CACHE_PREFIX}BatchCalc_{string.Join("_", productIdList.OrderBy(x => x))}";
+            
+        return await _cacheService.GetOrSetAsync(cacheKey, async () =>
         {
-            context.PromotionProducts.Add(new PromotionProduct
+            var bestPromotions = await GetBestPromotionsForProductsAsync(productIdList, orderTotal);
+            var result = new Dictionary<string, double>();
+            
+            for (int i = 0; i < productIdList.Count; i++)
             {
-                Id = Guid.NewGuid().ToString(),
-                PromotionId = promotionId,
-                ProductId = productId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            });
-        }
-
-        // Add category entries
-        foreach (var categoryId in categoryIds)
-        {
-            context.PromotionCategories.Add(new PromotionCategory
-            {
-                Id = Guid.NewGuid().ToString(),
-                PromotionId = promotionId,
-                CategoryId = categoryId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            });
-        }
-
-        // Add brand entries
-        foreach (var brandId in brandIds)
-        {
-            context.PromotionBrands.Add(new PromotionBrand
-            {
-                Id = Guid.NewGuid().ToString(),
-                PromotionId = promotionId,
-                BrandId = brandId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            });
-        }
+                var productId = productIdList[i];
+                var originalPrice = originalPriceList[i];
+                var bestPromotion = bestPromotions.GetValueOrDefault(productId);
+                
+                if (bestPromotion != null && Enum.TryParse<PromotionType>(bestPromotion.Type, out var promotionType))
+                {
+                    var discountedPrice = PromotionCalculator.CalculateDiscountedPrice(
+                        originalPrice,
+                        promotionType,
+                        bestPromotion.DiscountValue,
+                        bestPromotion.MaxDiscountAmount);
+                    result[productId] = discountedPrice;
+                }
+                else
+                {
+                    result[productId] = originalPrice;
+                }
+            }
+            
+            return result;
+        });
     }
 
-    private async Task RemoveJunctionEntries(ShoeStoreDbContext context, string promotionId)
+    public async Task<Dictionary<string, PromotionDto?>> GetBestPromotionsForProductsAsync(IEnumerable<string> productIds, double? orderTotal = null)
     {
-        var productEntries = context.PromotionProducts.Where(pp => pp.PromotionId == promotionId);
-        var categoryEntries = context.PromotionCategories.Where(pc => pc.PromotionId == promotionId);
-        var brandEntries = context.PromotionBrands.Where(pb => pb.PromotionId == promotionId);
+        var productIdList = productIds.ToList();
+        var cacheKey = orderTotal.HasValue 
+            ? $"{CACHE_PREFIX}BatchBest_{string.Join("_", productIdList.OrderBy(x => x))}_{orderTotal.Value}"
+            : $"{CACHE_PREFIX}BatchBest_{string.Join("_", productIdList.OrderBy(x => x))}";
+            
+        return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+        {
+            using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+            var now = DateTime.UtcNow;
 
-        context.PromotionProducts.RemoveRange(productEntries);
-        context.PromotionCategories.RemoveRange(categoryEntries);
-        context.PromotionBrands.RemoveRange(brandEntries);
+            // Get all products with their categories and brands in one query
+            var products = await dbContext.Products
+                .Where(p => productIdList.Contains(p.Id))
+                .Select(p => new { p.Id, p.CategoryId, p.BrandId })
+                .ToListAsync();
+
+            // Get all active promotions that might apply to any of these products
+            var allPromotions = await dbContext.Promotions
+                .Include(p => p.PromotionProducts)
+                .Include(p => p.PromotionCategories)
+                .Include(p => p.PromotionBrands)
+                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
+                .ToListAsync();
+
+            // Filter promotions by order total if provided
+            if (orderTotal.HasValue)
+            {
+                allPromotions = allPromotions
+                    .Where(p => p.MinOrderAmount == null || p.MinOrderAmount <= orderTotal.Value)
+                    .ToList();
+            }
+
+            var result = new Dictionary<string, PromotionDto?>();
+
+            foreach (var product in products)
+            {
+                // Find the best promotion for this specific product
+                var applicablePromotions = allPromotions.Where(p =>
+                    p.Scope == PromotionScope.All ||
+                    (p.Scope == PromotionScope.Product && p.PromotionProducts!.Any(pp => pp.ProductId == product.Id)) ||
+                    (p.Scope == PromotionScope.Category && product.CategoryId != null && p.PromotionCategories!.Any(pc => pc.CategoryId == product.CategoryId)) ||
+                    (p.Scope == PromotionScope.Brand && product.BrandId != null && p.PromotionBrands!.Any(pb => pb.BrandId == product.BrandId))
+                ).OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
+                .ThenByDescending(p => p.DiscountValue) // Order by discount value as secondary sort
+                .FirstOrDefault();
+
+                result[product.Id] = applicablePromotions?.ToDto();
+            }
+
+            // Handle products that might not be found in database
+            foreach (var productId in productIdList.Where(id => !result.ContainsKey(id)))
+            {
+                result[productId] = null;
+            }
+
+            return result;
+        });
     }
-} 
+}

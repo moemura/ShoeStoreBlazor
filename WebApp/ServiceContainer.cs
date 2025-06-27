@@ -22,8 +22,8 @@ public static class ServiceContainer
         services.AddScoped<PaymentStrategyFactory>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ICartService, CartService>();
-        //services.AddScoped<ICacheService, NoCacheService>();
-        services.AddScoped<ICacheService, MemoryCacheService>();
+        services.AddScoped<ICacheService, NoCacheService>();
+        //services.AddScoped<ICacheService, MemoryCacheService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IBrandService, BrandService>();

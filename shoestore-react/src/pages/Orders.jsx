@@ -97,7 +97,7 @@ const Orders = () => {
           <p className="text-gray-600 mb-6">Bạn cần đăng nhập để xem danh sách đơn hàng</p>
           <Link
             to="/login"
-            className="inline-block bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+            className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg"
           >
             Đăng nhập
           </Link>
@@ -187,7 +187,7 @@ const Orders = () => {
             </div>
             <Link
               to="/products"
-              className="inline-block bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors"
+              className="inline-block bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-lg"
             >
               Bắt đầu mua sắm
             </Link>

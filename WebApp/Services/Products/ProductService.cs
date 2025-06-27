@@ -339,25 +339,215 @@ namespace WebApp.Services.Products
 
         public Task RemoveProductCache() => _cacheService.RemoveByPrefixAsync(CACHE_PREFIX);
 
-        private async Task<IEnumerable<ProductDto>> ApplyPromotionsToProducts(IEnumerable<ProductDto> products)
+        // New methods for dynamic pricing
+        public async Task<ProductDto> GetByIdWithDynamicPricing(string id, double? orderTotal = null)
+        {
+            var cacheKey = orderTotal.HasValue 
+                ? $"{CACHE_PREFIX}DynamicPricing_Id_{id}_OrderTotal_{orderTotal.Value}"
+                : $"{CACHE_PREFIX}DynamicPricing_Id_{id}";
+                
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var product = await dbContext.Products
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
+                    .SingleOrDefaultAsync(p => p.Id == id);
+                
+                if (product == null)
+                    return null;
+
+                var productDto = product.ToDto();
+                
+                // Calculate promotion price with order validation if orderTotal is provided
+                if (orderTotal.HasValue)
+                {
+                    var promotionPrice = await _promotionService.CalculatePromotionPriceWithOrderValidationAsync(
+                        id, productDto.Price, orderTotal.Value);
+                    
+                    if (promotionPrice < productDto.Price)
+                    {
+                        productDto.PromotionPrice = promotionPrice;
+                        productDto.PromotionDiscount = productDto.Price - promotionPrice;
+                        productDto.HasActivePromotion = true;
+                        
+                        var bestPromotion = await _promotionService.GetBestPromotionForProductWithOrderValidationAsync(id, orderTotal.Value);
+                        productDto.PromotionName = bestPromotion?.Name;
+                    }
+                }
+                else
+                {
+                    // Calculate promotion price without order validation
+                    var promotionPrice = await _promotionService.CalculatePromotionPriceAsync(id, productDto.Price);
+                    if (promotionPrice < productDto.Price)
+                    {
+                        productDto.PromotionPrice = promotionPrice;
+                        productDto.PromotionDiscount = productDto.Price - promotionPrice;
+                        productDto.HasActivePromotion = true;
+                        
+                        var bestPromotion = await _promotionService.GetBestPromotionForProductAsync(id);
+                        productDto.PromotionName = bestPromotion?.Name;
+                    }
+                }
+                
+                return productDto;
+            });
+        }
+
+        public async Task<IEnumerable<ProductDto>> GetAllWithDynamicPricing(double? orderTotal = null)
+        {
+            var cacheKey = orderTotal.HasValue 
+                ? $"{CACHE_PREFIX}AllDynamicPricing_OrderTotal_{orderTotal.Value}"
+                : $"{CACHE_PREFIX}AllDynamicPricing";
+                
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+                var data = await dbContext.Products
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
+                    .OrderBy(p => p.CreatedAt)
+                    .ToListAsync();
+                
+                var products = data.Select(p => p.ToDto()).ToList();
+                return await ApplyDynamicPromotionsToProducts(products, orderTotal);
+            });
+        }
+
+        public async Task<PaginatedList<ProductDto>> GetPaginationWithDynamicPricing(int pageIndex, int pageSize, double? orderTotal = null)
+        {
+            var cacheKey = orderTotal.HasValue 
+                ? $"{CACHE_PREFIX}DynamicPricingPage_{pageIndex}_Size_{pageSize}_OrderTotal_{orderTotal.Value}"
+                : $"{CACHE_PREFIX}DynamicPricingPage_{pageIndex}_Size_{pageSize}";
+                
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+
+                var totalItems = await dbContext.Products.CountAsync();
+
+                var productIds = await dbContext.Products
+                    .OrderBy(p => p.CreatedAt)
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                var products = await dbContext.Products
+                    .Where(p => productIds.Contains(p.Id))
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
+                    .OrderBy(p => p.CreatedAt)
+                    .ToListAsync();
+
+                var productDtos = products.Select(p => p.ToDto()).ToList();
+                var productsWithPromotions = await ApplyDynamicPromotionsToProducts(productDtos, orderTotal);
+
+                return new PaginatedList<ProductDto>(
+                    productsWithPromotions,
+                    pageIndex,
+                    pageSize,
+                    totalItems
+                );
+            });
+        }
+
+        private async Task<IEnumerable<ProductDto>> ApplyDynamicPromotionsToProducts(IEnumerable<ProductDto> products, double? orderTotal = null)
         {
             var productList = products.ToList();
-            var tasks = productList.Select(async product =>
+            if (!productList.Any()) return productList;
+
+            // Extract product IDs and prices for batch processing
+            var productIds = productList.Select(p => p.Id).ToList();
+            var originalPrices = productList.Select(p => p.Price).ToList();
+
+            // Use batch processing to get promotion prices and best promotions
+            var promotionPrices = await _promotionService.CalculatePromotionPricesForProductsAsync(productIds, originalPrices, orderTotal);
+            var bestPromotions = await _promotionService.GetBestPromotionsForProductsAsync(productIds, orderTotal);
+
+            // Apply results to products
+            foreach (var product in productList)
             {
-                var promotionPrice = await _promotionService.CalculatePromotionPriceAsync(product.Id, product.Price);
-                if (promotionPrice < product.Price)
+                if (promotionPrices.TryGetValue(product.Id, out var promotionPrice) && promotionPrice < product.Price)
                 {
                     product.PromotionPrice = promotionPrice;
                     product.PromotionDiscount = product.Price - promotionPrice;
                     product.HasActivePromotion = true;
                     
-                    var bestPromotion = await _promotionService.GetBestPromotionForProductAsync(product.Id);
-                    product.PromotionName = bestPromotion?.Name;
+                    if (bestPromotions.TryGetValue(product.Id, out var bestPromotion) && bestPromotion != null)
+                    {
+                        product.PromotionName = bestPromotion.Name;
+                    }
                 }
-                return product;
+            }
+
+            return productList;
+        }
+
+        public async Task<PaginatedList<ProductDto>> FilterAndPaginWithDynamicPricing(int pageIndex, int pageSize, Dictionary<string, string> filter, double orderTotal)
+        {
+            var orderedFilter = filter.OrderBy(kv => kv.Key);
+            var filterKey = string.Join("_", orderedFilter.Select(f => $"{f.Key}_{f.Value}"));
+            var cacheKey = $"{CACHE_PREFIX}FilterDynamicPricing_{filterKey}_Page_{pageIndex}_Size_{pageSize}_OrderTotal_{orderTotal}";
+
+            return await _cacheService.GetOrSetAsync(cacheKey, async () =>
+            {
+                using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+
+                // Build query with filters
+                var query = dbContext.Products.AsNoTracking().AsQueryable();
+
+                if (filter.TryGetValue("search", out var name) && !string.IsNullOrWhiteSpace(name))
+                    query = query.Where(p => p.Name.Contains(name));
+
+                if (filter.TryGetValue("minPrice", out var minPriceStr) && double.TryParse(minPriceStr, out double minPrice))
+                    query = query.Where(p => p.Price >= minPrice);
+
+                if (filter.TryGetValue("maxPrice", out var maxPriceStr) && double.TryParse(maxPriceStr, out double maxPrice))
+                    query = query.Where(p => p.Price <= maxPrice);
+
+                if (filter.TryGetValue("categoryId", out var categoryId) && !string.IsNullOrWhiteSpace(categoryId))
+                    query = query.Where(p => p.CategoryId == categoryId);
+
+                if (filter.TryGetValue("brandId", out var brandId) && !string.IsNullOrWhiteSpace(brandId))
+                    query = query.Where(p => p.BrandId == brandId);
+
+                var totalItems = await query.CountAsync();
+
+                var productIds = await query
+                    .OrderBy(p => p.CreatedAt)
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                // Get products with includes
+                var products = await dbContext.Products
+                    .AsNoTracking()
+                    .Where(p => productIds.Contains(p.Id))
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .Include(p => p.Inventories)
+                    .OrderBy(p => p.CreatedAt)
+                    .ToListAsync();
+
+                // Ensure correct order
+                var orderedProducts = productIds.Select(id => products.First(p => p.Id == id)).ToList();
+                var productDtos = orderedProducts.Select(p => p.ToDto()).ToList();
+                
+                // Apply dynamic promotions with batch processing
+                var productsWithPromotions = await ApplyDynamicPromotionsToProducts(productDtos, orderTotal);
+
+                return new PaginatedList<ProductDto>(
+                    productsWithPromotions,
+                    pageIndex,
+                    pageSize,
+                    totalItems
+                );
             });
-            
-            return await Task.WhenAll(tasks);
         }
     }
 }

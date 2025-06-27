@@ -1,0 +1,131 @@
+@using WebApp.Models.DTOs
+@using WebApp.Models.Entities
+@using AntDesign
+
+<Table TItem="PromotionDto"
+       DataSource="@DataSource"
+       Loading="@Loading">
+    <PropertyColumn Property="c => c.Name" Title="Tên khuyến mãi">
+        <div>
+            <Text Strong>@context.Name</Text>
+            @if (!string.IsNullOrEmpty(context.Description))
+            {
+                <br />
+                <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">@context.Description</AntDesign.Text>
+            }
+        </div>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.Type" Title="Loại">
+        <Tag Color="@(context.Type == "Percentage" ? "blue" : "green")">
+            @(context.Type == "Percentage" ? "Phần trăm" : "Số tiền cố định")
+        </Tag>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.DiscountValue" Title="Giá trị">
+        @if (context.Type == "Percentage")
+        {
+            <div>
+                <Text Strong Style="color: #1890ff;">@context.DiscountValue%</Text>
+                @if (context.MaxDiscountAmount.HasValue)
+                {
+                    <br />
+                    <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">
+                        Tối đa: @context.MaxDiscountAmount.Value.ToString("N0")đ
+                    </AntDesign.Text>
+                }
+            </div>
+        }
+        else
+        {
+            <AntDesign.Text Strong Style="color: #52c41a;">@context.DiscountValue.ToString("N0")đ</AntDesign.Text>
+        }
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.MinOrderAmount" Title="Đơn tối thiểu">
+        @if (context.MinOrderAmount.HasValue)
+        {
+            <AntDesign.Text Style="color: #722ed1;">@context.MinOrderAmount.Value.ToString("N0")đ</AntDesign.Text>
+        }
+        else
+        {
+            <AntDesign.Text Type="@TextElementType.Secondary">Không giới hạn</AntDesign.Text>
+        }
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.Priority" Title="Ưu tiên">
+        <Tag Color="@GetPriorityColor(context.Priority)">
+            @context.Priority
+        </Tag>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.StartDate" Title="Thời gian">
+        <div style="font-size: 12px;">
+            <div>Từ: @context.StartDate.ToString("dd/MM/yyyy")</div>
+            <div>Đến: @context.EndDate.ToString("dd/MM/yyyy")</div>
+        </div>
+    </PropertyColumn>
+    <PropertyColumn Property="c => c.IsActive" Title="Trạng thái">
+        @{
+            var (status, text) = GetPromotionStatusInfo(context);
+        }
+        <Badge Status="@status" Text="@text" />
+    </PropertyColumn>
+    <ActionColumn Title="Thao tác">
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="() => OnView.InvokeAsync(context)">
+                    <Icon Type="eye" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" OnClick="() => OnEdit.InvokeAsync(context)">
+                    <Icon Type="edit" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@(context.IsActive ? ButtonType.Default : ButtonType.Primary)"
+                        Size="@ButtonSize.Small"
+                        OnClick="() => OnToggleActive.InvokeAsync(context)">
+                    <Icon Type="@(context.IsActive ? "pause" : "play-circle")" />
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Popconfirm Title="Bạn có chắc chắn muốn xóa khuyến mãi này?"
+                            OnConfirm="@(() => OnDelete.InvokeAsync(context.Id))"
+                            OkText="Xóa"
+                            CancelText="Hủy">
+                    <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" Danger>
+                        <Icon Type="delete" />
+                    </Button>
+                </Popconfirm>
+            </SpaceItem>
+        </Space>
+    </ActionColumn>
+</Table>
+
+@code {
+    [Parameter] public IEnumerable<PromotionDto> DataSource { get; set; } = new List<PromotionDto>();
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback<PromotionDto> OnView { get; set; }
+    [Parameter] public EventCallback<PromotionDto> OnEdit { get; set; }
+    [Parameter] public EventCallback<PromotionDto> OnToggleActive { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
+
+    private (BadgeStatus, string) GetPromotionStatusInfo(PromotionDto promotion)
+    {
+        if (promotion.IsActive)
+        {
+            var now = DateTime.UtcNow;
+            if (now < promotion.StartDate) return (BadgeStatus.Processing, "Sắp diễn ra");
+            if (now > promotion.EndDate) return (BadgeStatus.Default, "Đã kết thúc");
+            return (BadgeStatus.Success, "Đang hoạt động");
+        }
+        return (BadgeStatus.Error, "Không hoạt động");
+    }
+
+    private string GetPriorityColor(int priority)
+    {
+        return priority switch
+        {
+            <= 3 => "red",
+            <= 7 => "orange",
+            _ => "gold"
+        };
+    }
+} 

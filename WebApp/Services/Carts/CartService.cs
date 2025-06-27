@@ -31,10 +31,13 @@ public class CartService : ICartService
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         var cart = await _cacheService.GetOrSetAsync(key, async () => new CartDto { CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow }, TimeSpan.FromDays(CartExpireDays));
         
-        // Apply promotions to all cart items
+        // Calculate total order amount for dynamic pricing
+        var orderTotal = cart.Items.Sum(item => item.Price * item.Quantity);
+        
+        // Apply dynamic promotions to all cart items with order total validation
         foreach (var item in cart.Items)
         {
-            await ApplyPromotionToCartItem(item);
+            await ApplyDynamicPromotionToCartItem(item, orderTotal);
         }
         
         return cart;
@@ -60,22 +63,28 @@ public class CartService : ICartService
                 InventoryId = request.InventoryId,
                 Quantity = request.Quantity,
                 ProductId = product?.Id ?? string.Empty,
-                ProductName = product?.Name ?? string.Empty,
-                Size = inventory.SizeId,
-                MainImage = product?.MainImage,
-                BrandName = product?.Brand?.Name,
+                ProductName = product?.Name ?? "",
+                BrandName = product?.Brand?.Name ?? "",
+                MainImage = product?.MainImage ?? "",
                 Price = product?.Price ?? 0,
-                SalePrice = product?.SalePrice
+                SalePrice = product?.SalePrice, // Keep for backward compatibility, but will be superseded by PromotionPrice
+                Size = inventory.SizeId
             };
             
-            // Apply promotion to cart item
-            await ApplyPromotionToCartItem(item);
             cart.Items.Add(item);
         }
         else
         {
             item.Quantity = request.Quantity;
         }
+        
+        // Recalculate promotions for entire cart after item changes
+        var orderTotal = cart.Items.Sum(i => i.Price * i.Quantity);
+        foreach (var cartItem in cart.Items)
+        {
+            await ApplyDynamicPromotionToCartItem(cartItem, orderTotal);
+        }
+        
         cart.UpdatedAt = DateTime.UtcNow;
         await _cacheService.GetOrSetAsync(key, async () => cart, TimeSpan.FromDays(CartExpireDays));
         return item;
@@ -88,6 +97,14 @@ public class CartService : ICartService
         var key = userIdOrGuestId.StartsWith("guest_") ? GetCartKey(userIdOrGuestId, true) : GetCartKey(userIdOrGuestId);
         var cart = await GetCart(userIdOrGuestId);
         cart.Items.RemoveAll(i => i.InventoryId == inventoryId);
+        
+        // Recalculate promotions for remaining items
+        var orderTotal = cart.Items.Sum(i => i.Price * i.Quantity);
+        foreach (var cartItem in cart.Items)
+        {
+            await ApplyDynamicPromotionToCartItem(cartItem, orderTotal);
+        }
+        
         cart.UpdatedAt = DateTime.UtcNow;
         await _cacheService.GetOrSetAsync(key, async () => cart, TimeSpan.FromDays(CartExpireDays));
     }
@@ -126,6 +143,14 @@ public class CartService : ICartService
             else
                 userCart.Items.Add(item);
         }
+        
+        // Recalculate promotions for merged cart
+        var orderTotal = userCart.Items.Sum(i => i.Price * i.Quantity);
+        foreach (var cartItem in userCart.Items)
+        {
+            await ApplyDynamicPromotionToCartItem(cartItem, orderTotal);
+        }
+        
         userCart.UpdatedAt = DateTime.UtcNow;
         await _cacheService.GetOrSetAsync(userKey, async () => userCart, TimeSpan.FromDays(CartExpireDays));
         await _cacheService.RemoveAsync(guestKey);
@@ -145,6 +170,42 @@ public class CartService : ICartService
             
             var bestPromotion = await _promotionService.GetBestPromotionForProductAsync(item.ProductId);
             item.PromotionName = bestPromotion?.Name;
+        }
+        else
+        {
+            // Reset promotion fields if no promotion applies
+            item.PromotionPrice = null;
+            item.PromotionDiscount = null;
+            item.HasActivePromotion = false;
+            item.PromotionName = null;
+        }
+    }
+
+    private async Task ApplyDynamicPromotionToCartItem(CartItemDto item, double orderTotal)
+    {
+        if (string.IsNullOrEmpty(item.ProductId))
+            return;
+
+        var promotionPrice = await _promotionService.CalculatePromotionPriceWithOrderValidationAsync(
+            item.ProductId, item.Price, orderTotal);
+            
+        if (promotionPrice < item.Price)
+        {
+            item.PromotionPrice = promotionPrice;
+            item.PromotionDiscount = item.Price - promotionPrice;
+            item.HasActivePromotion = true;
+            
+            var bestPromotion = await _promotionService.GetBestPromotionForProductWithOrderValidationAsync(
+                item.ProductId, orderTotal);
+            item.PromotionName = bestPromotion?.Name;
+        }
+        else
+        {
+            // Reset promotion fields if no promotion applies
+            item.PromotionPrice = null;
+            item.PromotionDiscount = null;
+            item.HasActivePromotion = false;
+            item.PromotionName = null;
         }
     }
 }

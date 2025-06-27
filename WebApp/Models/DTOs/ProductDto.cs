@@ -10,8 +10,11 @@ namespace WebApp.Models.DTOs
         public string Description { get; set; } = null!;
         [Range(0, 100000000)]
         public double Price { get; set; }
+        
+        [Obsolete("SalePrice is deprecated. Use PromotionPrice instead. This field will be removed in future versions.")]
         [Range(0, 100000000)]
         public double? SalePrice { get; set; }
+        
         public string? MainImage { get; set; }
         public List<string>? Images { get; set; }
         public int LikeCount { get; set; }
@@ -29,7 +32,7 @@ namespace WebApp.Models.DTOs
 
         public IEnumerable<InventoryDto>? Inventories { get; set; }
 
-        // Promotion information
+        // Promotion information (preferred over SalePrice)
         public double? PromotionPrice { get; set; }
         public double? PromotionDiscount { get; set; }
         public string? PromotionName { get; set; }

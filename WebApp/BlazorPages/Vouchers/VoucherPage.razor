@@ -373,6 +373,15 @@
                 </FormItem>
             </AntDesign.Col>
             <AntDesign.Col Span="12">
+                <FormItem Label="Tên Voucher" Required>
+                    <Input @bind-Value="@_voucherForm.Name" 
+                           Placeholder="Ví dụ: Khuyến mãi mùa hè 2024" />
+                </FormItem>
+            </AntDesign.Col>
+        </AntDesign.Row>
+
+        <AntDesign.Row Gutter="16">
+            <AntDesign.Col Span="12">
                 <FormItem Label="Loại Voucher" Required>
                     <Select TItem="VoucherType"
                             TItemValue="VoucherType"
@@ -383,6 +392,9 @@
                         </SelectOptions>
                     </Select>
                 </FormItem>
+            </AntDesign.Col>
+            <AntDesign.Col Span="12">
+                <!-- Empty column for layout balance -->
             </AntDesign.Col>
         </AntDesign.Row>
 
@@ -557,6 +569,7 @@
     private class VoucherFormModel
     {
         public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
         public string? Description { get; set; }
         public VoucherType Type { get; set; }
         public double Value { get; set; }
@@ -819,6 +832,7 @@
         _voucherForm = new VoucherFormModel
         {
             Code = voucher.Code,
+            Name = voucher.Name,
             Description = voucher.Description,
             Type = voucher.Type,
             Value = voucher.Value,
@@ -848,6 +862,7 @@
                 var createRequest = new VoucherCreateRequest
                 {
                     Code = _voucherForm.Code?.Trim().ToUpper() ?? "",
+                    Name = _voucherForm.Name?.Trim() ?? "",
                     Description = _voucherForm.Description?.Trim(),
                     Type = _voucherForm.Type,
                     Value = _voucherForm.Value,
@@ -866,7 +881,9 @@
                 // Update existing voucher
                 var updateRequest = new VoucherUpdateRequest
                 {
+                    Name = _voucherForm.Name?.Trim() ?? "",
                     Description = _voucherForm.Description?.Trim(),
+                    Type = _voucherForm.Type,
                     Value = _voucherForm.Value,
                     MinOrderAmount = _voucherForm.MinOrderAmount,
                     MaxDiscountAmount = _voucherForm.MaxDiscountAmount,

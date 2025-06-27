@@ -1,3 +1,6 @@
+using Moq;
+using WebApp.Services.Catches;
+using WebApp.Services.Promotions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,43 +9,40 @@ using WebApp.Models.DTOs;
 using WebApp.Models.Entities;
 using WebApp.Models.Mapping;
 using WebApp.Services.Products;
-using WebApp.Services.Catches;
 
 namespace WebApp.Tests.DataTests
 {
     public class ProductServiceTests
     {
         private readonly IDbContextFactory<ShoeStoreDbContext> _contextFactory;
+        private readonly Mock<ICacheService> _mockCacheService;
+        private readonly Mock<IPromotionService> _mockPromotionService;
         private readonly IProductService _productService;
 
         public ProductServiceTests()
         {
-            // Setup in-memory database
             var options = new DbContextOptionsBuilder<ShoeStoreDbContext>()
-                .UseInMemoryDatabase(databaseName: "TestDb")
+                .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
                 .Options;
 
-            // Create a service provider for the DbContextFactory
             var serviceProvider = new ServiceCollection()
                 .AddEntityFrameworkInMemoryDatabase()
                 .BuildServiceProvider();
 
-            // Create the DbContextFactory with the required parameters
             _contextFactory = new DbContextFactory<ShoeStoreDbContext>(
                 serviceProvider,
                 options,
                 new DbContextFactorySource<ShoeStoreDbContext>()
             );
 
-            // Setup mock cache service
+            _mockCacheService = new Mock<ICacheService>();
+            _mockPromotionService = new Mock<IPromotionService>();
 
-
-            // Clear database before each test
             using var context = _contextFactory.CreateDbContext();
             context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
 
-            _productService = new ProductService(_contextFactory);
+            _productService = new ProductService(_contextFactory, _mockCacheService.Object, _mockPromotionService.Object);
         }
 
         [Fact]

@@ -1,0 +1,104 @@
+@using WebApp.Models.DTOs
+@using WebApp.Models.Entities
+@using AntDesign
+
+<Modal Title="@("Chi tiết Khuyến mãi: " + (Promotion?.Name ?? ""))"
+       Visible="@Visible"
+       OnCancel="@(() => OnCancel.InvokeAsync())"
+       Width="800"
+       Footer="null">
+    @if (Promotion != null)
+    {
+        <Descriptions Bordered="true" Column="2">
+            <DescriptionsItem Title="Tên khuyến mãi" Span="2">
+                <Text Strong>@Promotion.Name</Text>
+            </DescriptionsItem>
+            <DescriptionsItem Title="Mô tả" Span="2">
+                @(Promotion.Description ?? "Không có mô tả")
+            </DescriptionsItem>
+            <DescriptionsItem Title="Loại khuyến mãi">
+                <Tag Color="@(Promotion.Type == "Percentage" ? "blue" : "green")">
+                    @(Promotion.Type == "Percentage" ? "Phần trăm" : "Số tiền cố định")
+                </Tag>
+            </DescriptionsItem>
+            <DescriptionsItem Title="Giá trị">
+                @if (Promotion.Type == "Percentage")
+                {
+                    <AntDesign.Text Strong Style="color: #1890ff;">@Promotion.DiscountValue%</AntDesign.Text>
+                    @if (Promotion.MaxDiscountAmount.HasValue)
+                    {
+                        <br />
+                        <AntDesign.Text Type="@TextElementType.Secondary">
+                            Tối đa: @Promotion.MaxDiscountAmount.Value.ToString("N0")đ
+                        </AntDesign.Text>
+                    }
+                }
+                else
+                {
+                    <AntDesign.Text Strong Style="color: #52c41a;">@Promotion.DiscountValue.ToString("N0")đ</AntDesign.Text>
+                }
+            </DescriptionsItem>
+            <DescriptionsItem Title="Đơn hàng tối thiểu">
+                @if (Promotion.MinOrderAmount.HasValue)
+                {
+                    <AntDesign.Text Style="color: #722ed1;">@Promotion.MinOrderAmount.Value.ToString("N0")đ</AntDesign.Text>
+                }
+                else
+                {
+                    <AntDesign.Text Type="@TextElementType.Secondary">Không giới hạn</AntDesign.Text>
+                }
+            </DescriptionsItem>
+            <DescriptionsItem Title="Mức độ ưu tiên">
+                <Tag Color="@GetPriorityColor(Promotion.Priority)">
+                    @Promotion.Priority
+                </Tag>
+            </DescriptionsItem>
+            <DescriptionsItem Title="Thời gian bắt đầu">
+                @Promotion.StartDate.ToString("dd/MM/yyyy HH:mm")
+            </DescriptionsItem>
+            <DescriptionsItem Title="Thời gian kết thúc">
+                @Promotion.EndDate.ToString("dd/MM/yyyy HH:mm")
+            </DescriptionsItem>
+            <DescriptionsItem Title="Trạng thái">
+                @{
+                    var (status, text) = GetPromotionStatusInfo(Promotion);
+                }
+                <Badge Status="@status" Text="@text" />
+            </DescriptionsItem>
+            <DescriptionsItem Title="Ngày tạo">
+                @Promotion.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+            </DescriptionsItem>
+            <DescriptionsItem Title="Cập nhật cuối">
+                @Promotion.UpdatedAt?.ToString("dd/MM/yyyy HH:mm")
+            </DescriptionsItem>
+        </Descriptions>
+    }
+</Modal>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public PromotionDto? Promotion { get; set; }
+
+    private (BadgeStatus, string) GetPromotionStatusInfo(PromotionDto promotion)
+    {
+        if (promotion.IsActive)
+        {
+            var now = DateTime.UtcNow;
+            if (now < promotion.StartDate) return (BadgeStatus.Processing, "Sắp diễn ra");
+            if (now > promotion.EndDate) return (BadgeStatus.Default, "Đã kết thúc");
+            return (BadgeStatus.Success, "Đang hoạt động");
+        }
+        return (BadgeStatus.Error, "Không hoạt động");
+    }
+
+    private string GetPriorityColor(int priority)
+    {
+        return priority switch
+        {
+            <= 3 => "red",
+            <= 7 => "orange",
+            _ => "gold"
+        };
+    }
+} 

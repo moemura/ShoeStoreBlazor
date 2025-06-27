@@ -48,7 +48,7 @@ public static class PromotionCalculator
 
         // Sort by priority (higher first), then by discount amount (higher first)
         return validPromotions
-            .OrderByDescending(p => p.Priority)
+            .OrderBy(p => p.Priority) // Priority 1 is higher than Priority 2
             .ThenByDescending(p => CalculateDiscount(originalPrice, p.Type, p.DiscountValue, p.MaxDiscountAmount))
             .FirstOrDefault();
     }

@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "../lib/utils";
 import { categoryService } from '../services/categoryService';
 import { brandService } from '../services/brandService';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingCart, Menu, X, User } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, Search, ChevronDown, Heart, Bell } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import ShoeLogo from './ShoeLogo';
 
 const Header = ({ onCartClick }) => {
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [hoveredNav, setHoveredNav] = useState(null);
   const { cartCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
@@ -34,22 +39,34 @@ const Header = ({ onCartClick }) => {
     fetchData();
   }, []);
 
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handleCategoryClick = (categoryId) => {
     navigate(`/products?categoryId=${categoryId}`);
     setIsMenuOpen(false);
+    setHoveredNav(null);
   };
 
   const handleBrandClick = (brandId) => {
     navigate(`/products?brandId=${brandId}`);
     setIsMenuOpen(false);
+    setHoveredNav(null);
   };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    const searchTerm = e.target.search.value;
-    if (searchTerm.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchTerm.trim())}`);
+    if (searchQuery.trim()) {
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsMenuOpen(false);
+      setSearchQuery('');
     }
   };
 
@@ -68,443 +85,431 @@ const Header = ({ onCartClick }) => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white">
+    <motion.header 
+      className={cn(
+        "sticky top-0 z-50 w-full transition-all duration-300",
+        isScrolled 
+          ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50" 
+          : "bg-white border-b border-gray-100"
+      )}
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-2 text-sm">
+        <div className="container mx-auto px-4">
+          <span className="flex items-center justify-center gap-2">
+            🎉 Miễn phí vận chuyển cho đơn hàng trên 500K
+            <Link to="/promotions" className="underline hover:no-underline font-medium">
+              Xem chi tiết
+            </Link>
+          </span>
+        </div>
+      </div>
+
       {/* Main Header */}
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo and Shop Name */}
-          <Link to="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="Logo" className="h-8 w-8" />
-            <span className="text-xl font-bold">ShoeStore</span>
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-3 group flex-shrink-0">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
+              <div className="relative">
+                <ShoeLogo className="h-12 w-12 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                ShoeStore
+              </span>
+              <span className="text-xs text-gray-500 -mt-1">Fashion & Style</span>
+            </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
+          {/* Desktop Navigation - Centered */}
+          <nav className="hidden lg:flex items-center justify-center space-x-8 flex-1">
             <Link 
               to="/products" 
               className={cn(
-                "text-gray-700 hover:text-gray-900",
-                isActive('/products') && "font-semibold text-black"
+                "relative text-gray-700 hover:text-purple-600 font-medium transition-colors duration-200",
+                isActive('/products') && "text-purple-600"
               )}
             >
               Sản phẩm
+              {isActive('/products') && (
+                <motion.div
+                  className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600"
+                  layoutId="activeTab"
+                />
+              )}
             </Link>
 
-            {/* Categories Dropdown */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="flex items-center space-x-1 text-gray-700 hover:text-gray-900">
-                  <span>Danh mục</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4"
+            {/* Categories Dropdown - Hover based */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setHoveredNav('categories')}
+              onMouseLeave={() => setHoveredNav(null)}
+            >
+              <button className="flex items-center space-x-1 text-gray-700 hover:text-purple-600 font-medium transition-colors duration-200 group">
+                <span>Danh mục</span>
+                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180" />
+              </button>
+              
+              <AnimatePresence>
+                {hoveredNav === 'categories' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-full left-0 mt-2 w-[280px] bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50"
                   >
-                    <path d="m6 9 6 6 6-6"/>
-                  </svg>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-0" align="start">
-                <div className="grid gap-1 p-2">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => handleCategoryClick(category.id)}
-                      className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b">
+                      <h3 className="font-semibold text-gray-900">Danh mục sản phẩm</h3>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {categories.map((category, index) => (
+                        <motion.button
+                          key={category.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          onClick={() => handleCategoryClick(category.id)}
+                          className="w-full flex items-center px-4 py-3 text-sm hover:bg-purple-50 transition-colors group"
+                        >
+                          <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                            <span className="text-purple-600 font-bold text-xs">
+                              {category.name.charAt(0)}
+                            </span>
+                          </div>
+                          <span className="text-gray-700 group-hover:text-purple-600 font-medium">
+                            {category.name}
+                          </span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-            {/* Brands Dropdown */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="flex items-center space-x-1 text-gray-700 hover:text-gray-900">
-                  <span>Thương hiệu</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4"
+            {/* Brands Dropdown - Hover based */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setHoveredNav('brands')}
+              onMouseLeave={() => setHoveredNav(null)}
+            >
+              <button className="flex items-center space-x-1 text-gray-700 hover:text-purple-600 font-medium transition-colors duration-200 group">
+                <span>Thương hiệu</span>
+                <ChevronDown className="h-4 w-4 transition-transform group-hover:rotate-180" />
+              </button>
+              
+              <AnimatePresence>
+                {hoveredNav === 'brands' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-full left-0 mt-2 w-[280px] bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50"
                   >
-                    <path d="m6 9 6 6 6-6"/>
-                  </svg>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-0" align="start">
-                <div className="grid gap-1 p-2">
-                  {brands.map((brand) => (
-                    <button
-                      key={brand.id}
-                      onClick={() => handleBrandClick(brand.id)}
-                      className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                    >
-                      {brand.name}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b">
+                      <h3 className="font-semibold text-gray-900">Thương hiệu nổi bật</h3>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {brands.map((brand, index) => (
+                        <motion.button
+                          key={brand.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          onClick={() => handleBrandClick(brand.id)}
+                          className="w-full flex items-center px-4 py-3 text-sm hover:bg-purple-50 transition-colors group"
+                        >
+                          <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                            <span className="text-purple-600 font-bold text-xs">
+                              {brand.name.charAt(0)}
+                            </span>
+                          </div>
+                          <span className="text-gray-700 group-hover:text-purple-600 font-medium">
+                            {brand.name}
+                          </span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             <Link 
               to="/promotions" 
               className={cn(
-                "text-gray-700 hover:text-gray-900",
-                isActive('/promotions') && "font-semibold text-black"
+                "relative text-gray-700 hover:text-purple-600 font-medium transition-colors duration-200 flex items-center gap-1",
+                isActive('/promotions') && "text-purple-600"
               )}
             >
-              Khuyến mãi
+              <span>Khuyến mãi</span>
+              <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full animate-pulse">Hot</span>
+              {isActive('/promotions') && (
+                <motion.div
+                  className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600"
+                  layoutId="activeTab"
+                />
+              )}
             </Link>
           </nav>
 
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-md mx-4">
-            <form onSubmit={handleSearch} className="relative w-full">
-              <input
-                type="text"
-                name="search"
-                placeholder="Tìm kiếm sản phẩm..."
-                className="w-full px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-gray-200"
-              />
-              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5 text-gray-400"
-                >
-                  <circle cx="11" cy="11" r="8"/>
-                  <path d="m21 21-4.3-4.3"/>
-                </svg>
-              </button>
+          {/* Search Bar - Reduced width */}
+          <div className="hidden md:flex items-center justify-center flex-shrink-0">
+            <form onSubmit={handleSearch} className="relative group">
+              <div className={cn(
+                "relative flex items-center transition-all duration-300",
+                isSearchFocused ? "scale-105" : "scale-100"
+              )}>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  placeholder="Tìm kiếm sản phẩm..."
+                  className={cn(
+                    "w-80 px-4 py-3 pl-12 pr-4 rounded-full border-2 transition-all duration-300 bg-gray-50",
+                    isSearchFocused 
+                      ? "border-purple-300 bg-white shadow-lg focus:outline-none focus:ring-4 focus:ring-purple-100" 
+                      : "border-gray-200 focus:outline-none focus:border-purple-300"
+                  )}
+                />
+                <Search className={cn(
+                  "absolute left-4 h-5 w-5 transition-colors duration-300",
+                  isSearchFocused ? "text-purple-500" : "text-gray-400"
+                )} />
+                <AnimatePresence>
+                  {searchQuery && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0 }}
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-4 p-1 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                      <X className="h-4 w-4 text-gray-400" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
             </form>
           </div>
 
-          {/* Right Section */}
-          <div className="flex items-center space-x-4">
-            {/* Cart Icon */}
-            <button
+          {/* Right Side Actions */}
+          <div className="flex items-center space-x-4 flex-shrink-0">
+            {/* Cart */}
+            <button 
               onClick={onCartClick}
-              className="p-2 text-gray-700 hover:text-gray-900 relative"
+              className="relative p-2 text-gray-700 hover:text-purple-600 transition-colors group"
             >
-              <ShoppingCart className="w-6 h-6" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {cartCount > 99 ? '99+' : cartCount}
-                </span>
-              )}
+              <ShoppingCart className="h-6 w-6" />
+              <AnimatePresence>
+                {cartCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold group-hover:scale-110 transition-transform"
+                  >
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
+
+            {/* User Menu */}
+            {isAuthenticated ? (
+              <div 
+                className="relative"
+                onMouseEnter={() => setHoveredNav('user')}
+                onMouseLeave={() => setHoveredNav(null)}
+              >
+                <button className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100 transition-colors group">
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {getUserDisplayName().charAt(0).toUpperCase()}
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                </button>
+                
+                <AnimatePresence>
+                  {hoveredNav === 'user' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full right-0 mt-2 w-[220px] bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50"
+                    >
+                      <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {getUserDisplayName().charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 text-sm">{getUserDisplayName()}</p>
+                            <p className="text-xs text-gray-500">{user?.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="py-2">
+                        <Link
+                          to="/profile"
+                          onClick={() => setHoveredNav(null)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                        >
+                          <User className="h-4 w-4 mr-3" />
+                          Hồ sơ cá nhân
+                        </Link>
+                        <Link
+                          to="/orders"
+                          onClick={() => setHoveredNav(null)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                        >
+                          <ShoppingCart className="h-4 w-4 mr-3" />
+                          Đơn hàng của tôi
+                        </Link>
+                        <Link
+                          to="/voucher-history"
+                          onClick={() => setHoveredNav(null)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                        >
+                          <Heart className="h-4 w-4 mr-3" />
+                          Voucher của tôi
+                        </Link>
+                        <hr className="my-2" />
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <X className="h-4 w-4 mr-3" />
+                          Đăng xuất
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link
+                  to="/login"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-purple-600 transition-colors"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:from-purple-700 hover:to-pink-700 transition-all hover:scale-105"
+                >
+                  Đăng ký
+                </Link>
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-gray-700 hover:text-gray-900"
+              className="lg:hidden p-2 text-gray-700 hover:text-purple-600 transition-colors"
             >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
-
-            {/* Login/Avatar - Desktop */}
-            <div className="hidden md:block">
-              {isAuthenticated ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg">
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <User className="h-5 w-5 text-indigo-600" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">
-                        {getUserDisplayName()}
-                      </span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0" align="end">
-                    <div className="grid gap-1 p-2">
-                      <div className="px-2 py-1.5 text-sm font-medium text-gray-900 border-b">
-                        {user?.email}
-                      </div>
-                      <Link
-                        to="/profile"
-                        className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                      >
-                        <User className="mr-2 h-4 w-4" />
-                        Tài khoản của tôi
-                      </Link>
-                      <Link
-                        to="/orders"
-                        className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                      >
-                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Đơn hàng của tôi
-                      </Link>
-                      <Link
-                        to="/vouchers"
-                        className="flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-gray-100"
-                      >
-                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        Mã giảm giá
-                      </Link>
-                      <div className="border-t my-1"></div>
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center rounded-md px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                      >
-                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        Đăng xuất
-                      </button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Link
-                    to="/login"
-                    className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-                  >
-                    Đăng nhập
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    Đăng ký
-                  </Link>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
 
       {/* Mobile Menu */}
-      <div
-        className={cn(
-          "md:hidden fixed inset-0 z-40 bg-white transform transition-transform duration-300 ease-in-out",
-          isMenuOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <div className="flex flex-col h-full">
-          {/* Mobile Menu Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-lg font-semibold">Menu</h2>
-            <button
-              onClick={() => setIsMenuOpen(false)}
-              className="p-2 hover:bg-gray-100 rounded-full"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden bg-white border-t border-gray-100 shadow-lg"
+          >
+            <div className="container mx-auto px-4 py-4 space-y-4">
+              {/* Mobile Search */}
+              <form onSubmit={handleSearch} className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm kiếm..."
+                  className="w-full px-4 py-3 pl-12 rounded-full border border-gray-200 focus:outline-none focus:border-purple-300"
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              </form>
 
-          {/* Mobile Search */}
-          <div className="p-4 border-b">
-            <form onSubmit={handleSearch} className="relative">
-              <input
-                type="text"
-                name="search"
-                placeholder="Tìm kiếm sản phẩm..."
-                className="w-full px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-gray-200"
-              />
-              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5 text-gray-400"
+              {/* Mobile Navigation */}
+              <div className="space-y-2">
+                <Link
+                  to="/products"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={cn(
+                    "block px-4 py-3 rounded-lg font-medium transition-colors",
+                    isActive('/products') ? "bg-purple-50 text-purple-600" : "text-gray-700 hover:bg-gray-50"
+                  )}
                 >
-                  <circle cx="11" cy="11" r="8"/>
-                  <path d="m21 21-4.3-4.3"/>
-                </svg>
-              </button>
-            </form>
-          </div>
+                  Sản phẩm
+                </Link>
+                <Link
+                  to="/promotions"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={cn(
+                    "block px-4 py-3 rounded-lg font-medium transition-colors",
+                    isActive('/promotions') ? "bg-purple-50 text-purple-600" : "text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  Khuyến mãi
+                </Link>
 
-          {/* Mobile Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <div className="space-y-4">
-              {/* User section for mobile */}
-              {isAuthenticated && (
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <User className="h-6 w-6 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{getUserDisplayName()}</p>
-                      <p className="text-sm text-gray-500">{user?.email}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <Link
-                to="/products"
-                className={cn(
-                  "block text-lg font-medium text-gray-900",
-                  isActive('/products') && "font-semibold text-black"
-                )}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Sản phẩm
-              </Link>
-
-              {/* Categories */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Danh mục</h3>
-                <div className="space-y-2">
-                  {categories.map((category) => (
+                {/* Mobile Categories */}
+                <div className="space-y-1">
+                  <h3 className="px-4 py-2 font-semibold text-gray-900">Danh mục</h3>
+                  {categories.slice(0, 5).map((category) => (
                     <button
                       key={category.id}
                       onClick={() => handleCategoryClick(category.id)}
-                      className="block w-full text-left px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-md"
+                      className="block w-full text-left px-6 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-purple-600 transition-colors"
                     >
                       {category.name}
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* Brands */}
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Thương hiệu</h3>
-                <div className="space-y-2">
-                  {brands.map((brand) => (
-                    <button
-                      key={brand.id}
-                      onClick={() => handleBrandClick(brand.id)}
-                      className="block w-full text-left px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-md"
+                {/* Mobile User Actions */}
+                {!isAuthenticated && (
+                  <div className="pt-4 border-t border-gray-100 space-y-2">
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full px-4 py-3 text-center text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      {brand.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <Link
-                to="/promotions"
-                className={cn(
-                  "block text-lg font-medium text-gray-900",
-                  isActive('/promotions') && "font-semibold text-black"
+                      Đăng nhập
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full px-4 py-3 text-center text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
+                    >
+                      Đăng ký
+                    </Link>
+                  </div>
                 )}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Khuyến mãi
-              </Link>
-
-              {/* Mobile Login/Avatar */}
-              {isAuthenticated ? (
-                <div className="space-y-2 border-t pt-4">
-                  <Link
-                    to="/profile"
-                    className={cn(
-                      "block text-lg font-medium text-gray-900",
-                      isActive('/profile') && "font-semibold text-black"
-                    )}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Tài khoản của tôi
-                  </Link>
-                  <Link
-                    to="/orders"
-                    className={cn(
-                      "block text-lg font-medium text-gray-900",
-                      isActive('/orders') && "font-semibold text-black"
-                    )}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Đơn hàng của tôi
-                  </Link>
-                  <Link
-                    to="/vouchers"
-                    className={cn(
-                      "block text-lg font-medium text-gray-900",
-                      isActive('/vouchers') && "font-semibold text-black"
-                    )}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Mã giảm giá
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left text-lg font-medium text-red-600"
-                  >
-                    Đăng xuất
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2 border-t pt-4">
-                  <Link
-                    to="/login"
-                    className={cn(
-                      "block text-lg font-medium text-gray-900",
-                      isActive('/login') && "font-semibold text-black"
-                    )}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Đăng nhập
-                  </Link>
-                  <Link
-                    to="/register"
-                    className={cn(
-                      "block text-lg font-medium text-indigo-600",
-                      isActive('/register') && "font-semibold text-indigo-800"
-                    )}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Đăng ký
-                  </Link>
-                </div>
-              )}
+              </div>
             </div>
-          </nav>
-        </div>
-      </div>
-
-      {/* SubHeader - Marquee */}
-      <div className="bg-gray-100 py-2">
-        <div className="container mx-auto px-4">
-          <div className="overflow-hidden whitespace-nowrap">
-            <div className="animate-marquee inline-block">
-              <span className="text-sm text-gray-600">
-                🎉 Khuyến mãi đặc biệt: Giảm giá lên đến 50% cho tất cả sản phẩm! 🎉
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   );
 };
 

@@ -1,0 +1,256 @@
+@using System.ComponentModel.DataAnnotations
+@using WebApp.Models.DTOs
+@using WebApp.Models.Entities
+@using AntDesign
+@using AntDesign.Select
+
+<Modal Title="@(Promotion == null ? "Tạo Khuyến mãi Mới" : "Chỉnh Sửa Khuyến mãi")"
+       Visible="@Visible"
+       OnOk="@HandleSave"
+       OnCancel="@(() => OnCancel.InvokeAsync())"
+       Width="800"
+       ConfirmLoading="@IsSubmitting">
+    @if (!string.IsNullOrEmpty(ModalError))
+    {
+        <Alert Type="@AlertType.Error" Message="@ModalError" Style="margin-bottom: 16px;" />
+    }
+
+    <Form Model="@_promotionForm" @ref="_form" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
+        <AntDesign.Row Gutter="16">
+            <AntDesign.Col Span="12">
+                <FormItem Label="Tên khuyến mãi">
+                    <Input @bind-Value="@_promotionForm.Name" 
+                           Placeholder="Ví dụ: Khuyến mãi mùa hè" />
+                </FormItem>
+            </AntDesign.Col>
+            <AntDesign.Col Span="12">
+                <FormItem Label="Loại khuyến mãi">
+                    <Select TItem="PromotionType"
+                            TItemValue="PromotionType"
+                            @bind-Value="@_promotionForm.Type">
+                        <SelectOptions>
+                            <SelectOption TItem="PromotionType" TItemValue="PromotionType" Value="PromotionType.Percentage" Label="Phần trăm" />
+                            <SelectOption TItem="PromotionType" TItemValue="PromotionType" Value="PromotionType.FixedAmount" Label="Số tiền cố định" />
+                        </SelectOptions>
+                    </Select>
+                </FormItem>
+            </AntDesign.Col>
+        </AntDesign.Row>
+
+        <AntDesign.Row Gutter="16">
+            <AntDesign.Col Span="12">
+                <FormItem Label="@(_promotionForm.Type == PromotionType.Percentage ? "Phần trăm giảm giá" : "Số tiền giảm (VNĐ)")">
+                    <AntDesign.InputNumber @bind-Value="@_promotionForm.DiscountValue"
+                                           Min="0"
+                                           Max="@(_promotionForm.Type == PromotionType.Percentage ? 100 : 999999999)"
+                                           Step="@(_promotionForm.Type == PromotionType.Percentage ? 0.1 : 1000)"
+                                           Style="width: 100%" />
+                </FormItem>
+            </AntDesign.Col>
+            <AntDesign.Col Span="12">
+                <FormItem Label="Mức độ ưu tiên">
+                    <AntDesign.InputNumber @bind-Value="@_promotionForm.Priority"
+                                           Min="1"
+                                           Max="100"
+                                           Step="1"
+                                           Style="width: 100%" />
+                </FormItem>
+            </AntDesign.Col>
+        </AntDesign.Row>
+
+        @if (_promotionForm.Type == PromotionType.Percentage)
+        {
+            <AntDesign.Row Gutter="16">
+                <AntDesign.Col Span="12">
+                    <FormItem Label="Số tiền giảm tối đa (VNĐ)">
+                        <AntDesign.InputNumber @bind-Value="@_promotionForm.MaxDiscountAmount"
+                                               Min="0"
+                                               Step="1000"
+                                               Style="width: 100%" />
+                    </FormItem>
+                </AntDesign.Col>
+            </AntDesign.Row>
+        }
+
+        <AntDesign.Row Gutter="16">
+            <AntDesign.Col Span="12">
+                <FormItem Label="Đơn hàng tối thiểu (VNĐ)">
+                    <AntDesign.InputNumber @bind-Value="@_promotionForm.MinOrderAmount"
+                                           Min="0"
+                                           Step="1000"
+                                           Style="width: 100%"
+                                           Placeholder="Không giới hạn nếu để trống" />
+                </FormItem>
+            </AntDesign.Col>
+        </AntDesign.Row>
+
+        <AntDesign.Row Gutter="16">
+            <AntDesign.Col Span="12">
+                <FormItem Label="Ngày bắt đầu">
+                    <DatePicker @bind-Value="@_promotionForm.StartDate"
+                                Format="dd/MM/yyyy HH:mm"
+                                ShowTime="true"
+                                Style="width: 100%" />
+                </FormItem>
+            </AntDesign.Col>
+            <AntDesign.Col Span="12">
+                <FormItem Label="Ngày kết thúc">
+                    <DatePicker @bind-Value="@_promotionForm.EndDate"
+                                Format="dd/MM/yyyy HH:mm"
+                                ShowTime="true"
+                                Style="width: 100%" />
+                </FormItem>
+            </AntDesign.Col>
+        </AntDesign.Row>
+
+        <FormItem Label="Mô tả">
+            <TextArea @bind-Value="@_promotionForm.Description"
+                      Rows="3"
+                      Placeholder="Mô tả ngắn về khuyến mãi..." />
+        </FormItem>
+        
+        <FormItem Label="Phạm vi áp dụng">
+            <RadioGroup @bind-Value="@_promotionForm.Scope">
+                <Radio RadioButton Value="@PromotionScope.All">Tất cả</Radio>
+                <Radio RadioButton Value="@PromotionScope.Product">Sản phẩm</Radio>
+                <Radio RadioButton Value="@PromotionScope.Category">Danh mục</Radio>
+                <Radio RadioButton Value="@PromotionScope.Brand">Thương hiệu</Radio>
+            </RadioGroup>
+        </FormItem>
+
+        @if (_promotionForm.Scope == PromotionScope.Product)
+        {
+            <FormItem Label="Sản phẩm áp dụng">
+                <Select TItem="ProductDto" TItemValue="string"
+                        Values="@_promotionForm.ProductIds"
+                        ValuesChanged="@((values) => { _promotionForm.ProductIds = values.ToList(); })"
+                        DataSource="@AllProducts"
+                        ValueName="@nameof(ProductDto.Id)"
+                        LabelName="@nameof(ProductDto.Name)"
+                        Mode="@SelectMode.Multiple"
+                        Placeholder="Chọn sản phẩm" AllowClear="true" ShowSearch>
+                </Select>
+            </FormItem>
+        }
+        
+        @if (_promotionForm.Scope == PromotionScope.Category)
+        {
+            <FormItem Label="Danh mục áp dụng">
+                <Select TItem="CategoryDto" TItemValue="string"
+                        Values="@_promotionForm.CategoryIds"
+                        ValuesChanged="@((values) => { _promotionForm.CategoryIds = values.ToList(); })"
+                        DataSource="@AllCategories"
+                        ValueName="@nameof(CategoryDto.Id)"
+                        LabelName="@nameof(CategoryDto.Name)"
+                        Mode="@SelectMode.Multiple"
+                        Placeholder="Chọn danh mục" AllowClear="true" ShowSearch>
+                </Select>
+            </FormItem>
+        }
+        
+        @if (_promotionForm.Scope == PromotionScope.Brand)
+        {
+            <FormItem Label="Thương hiệu áp dụng">
+                <Select TItem="BrandDto" TItemValue="string"
+                        Values="@_promotionForm.BrandIds"
+                        ValuesChanged="@((values) => { _promotionForm.BrandIds = values.ToList(); })"
+                        DataSource="@AllBrands"
+                        ValueName="@nameof(BrandDto.Id)"
+                        LabelName="@nameof(BrandDto.Name)"
+                        Mode="@SelectMode.Multiple"
+                        Placeholder="Chọn thương hiệu" AllowClear="true" ShowSearch>
+                </Select>
+            </FormItem>
+        }
+
+        <FormItem Label="Trạng thái">
+            <Checkbox @bind-Value="_promotionForm.IsActive">Kích hoạt khuyến mãi</Checkbox>
+        </FormItem>
+    </Form>
+</Modal>
+
+@code {
+    public class PromotionFormModel
+    {
+        [Required(ErrorMessage = "Tên khuyến mãi là bắt buộc.")]
+        [StringLength(100, ErrorMessage = "Tên khuyến mãi không được vượt quá 100 ký tự.")]
+        public string Name { get; set; } = "";
+
+        [StringLength(500, ErrorMessage = "Mô tả không được vượt quá 500 ký tự.")]
+        public string? Description { get; set; }
+
+        public PromotionType Type { get; set; } = PromotionType.Percentage;
+        
+        public PromotionScope Scope { get; set; } = PromotionScope.All;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Giá trị giảm giá phải là số dương.")]
+        public double DiscountValue { get; set; }
+
+        public double? MaxDiscountAmount { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Đơn hàng tối thiểu phải là số dương.")]
+        public double? MinOrderAmount { get; set; }
+
+        public DateTime StartDate { get; set; } = DateTime.Today;
+
+        public DateTime EndDate { get; set; } = DateTime.Today.AddDays(7);
+
+        [Range(1, 100, ErrorMessage = "Mức độ ưu tiên phải từ 1 đến 100.")]
+        public int Priority { get; set; } = 1;
+
+        public bool IsActive { get; set; }
+
+        public List<string> ProductIds { get; set; } = new();
+        public List<string> CategoryIds { get; set; } = new();
+        public List<string> BrandIds { get; set; } = new();
+    }
+
+    private Form<PromotionFormModel> _form = default!;
+    private PromotionFormModel _promotionForm = new();
+
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback<PromotionFormModel> OnSave { get; set; }
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public string? ModalError { get; set; }
+    [Parameter] public PromotionDto? Promotion { get; set; }
+    [Parameter] public IEnumerable<ProductDto> AllProducts { get; set; } = Enumerable.Empty<ProductDto>();
+    [Parameter] public IEnumerable<CategoryDto> AllCategories { get; set; } = Enumerable.Empty<CategoryDto>();
+    [Parameter] public IEnumerable<BrandDto> AllBrands { get; set; } = Enumerable.Empty<BrandDto>();
+
+    protected override void OnParametersSet()
+    {
+        if (Promotion != null)
+        {
+            _promotionForm = new PromotionFormModel
+                {
+                    Name = Promotion.Name,
+                    Description = Promotion.Description,
+                    Type = Enum.Parse<PromotionType>(Promotion.Type),
+                    Scope = !string.IsNullOrEmpty(Promotion.Scope) ? Enum.Parse<PromotionScope>(Promotion.Scope) : PromotionScope.All,
+                    DiscountValue = Promotion.DiscountValue,
+                    MaxDiscountAmount = Promotion.MaxDiscountAmount,
+                    MinOrderAmount = Promotion.MinOrderAmount,
+                    StartDate = Promotion.StartDate,
+                    EndDate = Promotion.EndDate,
+                    Priority = Promotion.Priority,
+                    IsActive = Promotion.IsActive,
+                    ProductIds = Promotion.ProductIds ?? new(),
+                    CategoryIds = Promotion.CategoryIds ?? new(),
+                    BrandIds = Promotion.BrandIds ?? new()
+                };
+        }
+        else
+        {
+            _promotionForm = new PromotionFormModel();
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        if (_form.Validate())
+        {
+            await OnSave.InvokeAsync(_promotionForm);
+        }
+    }
+} 

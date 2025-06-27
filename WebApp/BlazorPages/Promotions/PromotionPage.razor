@@ -1,13 +1,21 @@
 @page "/admin/promotions"
-@using AntDesign.TableModels
-@using WebApp.Models
 @using WebApp.Models.DTOs
 @using WebApp.Services.Promotions
+@using WebApp.Services.Products
+@using WebApp.Services.Categories
+@using WebApp.Services.Brands
 @using WebApp.Models.Entities
 @using Microsoft.AspNetCore.Authorization
+@using WebApp.BlazorPages.Promotions.Components
+@using WebApp.Services.Catches
 @attribute [Authorize(Policy = "RequireAdminRole")]
 @inject IPromotionService PromotionService
+@inject IProductService ProductService
+@inject ICategoryService CategoryService
+@inject IBrandService BrandService
+@inject ICacheService CacheService
 @inject MessageService MessageService
+
 
 <PageTitle>Quản lý Khuyến mãi</PageTitle>
 <Breadcrumb>
@@ -22,365 +30,45 @@
 
 <br />
 
-<!-- Search and Controls Row -->
-<AntDesign.Row Gutter="16" Style="margin-bottom: 16px;" Class="search-controls-row">
-    <AntDesign.Col Xs="24" Sm="14" Md="16" Lg="18">
-        <Space Style="width: 100%;">
-            <SpaceItem>
-                <Input @bind-Value="@_searchText"
-                       Placeholder="Tìm theo tên khuyến mãi..."
-                       OnChange="@(async (string value) => await OnSearch(value))"
-                       Style="width: 300px;">
-                    <Suffix>
-                        <Icon Type="search" />
-                    </Suffix>
-                </Input>
-            </SpaceItem>
-            <SpaceItem>
-                @if (HasActiveFilters())
-                {
-                    <Button Type="@ButtonType.Default" OnClick="ClearFilters">
-                        <Icon Type="clear" />
-                        <span class="hidden-xs">Xóa lọc</span>
-                    </Button>
-                }
-            </SpaceItem>
-        </Space>
-    </AntDesign.Col>
+<PromotionActions SearchText="@_searchText"
+                  Loading="_loading"
+                  HasActiveFilters="HasActiveFilters()"
+                  OnSearch="OnSearch"
+                  OnReload="ReloadData"
+                  OnCreate="ShowCreateModal"
+                  OnClearFilters="ClearFilters" />
 
-    <AntDesign.Col Xs="24" Sm="10" Md="8" Lg="6" Class="d-flex justify-content-end">
-        <Space Style="width: 100%;" Class="controls-right">
-            <SpaceItem>
-                <Button Type="@ButtonType.Default" OnClick="@ReloadData" Loading="_loading">
-                    <Icon Type="reload" />
-                    <span class="hidden-xs">Tải lại</span>
-                </Button>
-            </SpaceItem>
-            <SpaceItem>
-                <Button Type="@ButtonType.Primary" OnClick="ShowCreateModal">
-                    <Icon Type="plus" />
-                    <span class="hidden-xs">Tạo Khuyến mãi</span>
-                </Button>
-            </SpaceItem>
-        </Space>
-    </AntDesign.Col>
-</AntDesign.Row>
+<PromotionFilter @bind-FilterType="_filterType"
+                 @bind-FilterActive="_filterActive"
+                 @bind-MinPriority="_minPriority"
+                 @bind-MaxPriority="_maxPriority"
+                 OnFilterChanged="OnFilterChange" />
 
-<!-- Inline Filters (Desktop) -->
-<Card Class="desktop-filters" Style="margin-bottom: 16px;">
-    <AntDesign.Row Gutter="16">
-        <AntDesign.Col Span="8">
-            <Text Strong>Loại khuyến mãi:</Text>
-            <Select TItem="PromotionType?"
-                    TItemValue="PromotionType?"
-                    @bind-Value="@_filterType"
-                    Placeholder="Tất cả loại"
-                    AllowClear="true"
-                    Style="width: 100%; margin-top: 4px;"
-                    OnSelectedItemChanged="@(async (PromotionType? value) => await OnFilterChange())">
-                <SelectOptions>
-                    <SelectOption TItem="PromotionType?" TItemValue="PromotionType?" Value="PromotionType.Percentage" Label="Phần trăm" />
-                    <SelectOption TItem="PromotionType?" TItemValue="PromotionType?" Value="PromotionType.FixedAmount" Label="Số tiền cố định" />
-                </SelectOptions>
-            </Select>
-        </AntDesign.Col>
+<PromotionList DataSource="@_filteredData"
+               Loading="_loading"
+               OnView="ShowDetailModal"
+               OnEdit="ShowEditModal"
+               OnToggleActive="ToggleActiveStatus"
+               OnDelete="DeletePromotion" />
 
-        <AntDesign.Col Span="8">
-            <Text Strong>Trạng thái:</Text>
-            <Select TItem="bool?"
-                    TItemValue="bool?"
-                    @bind-Value="@_filterActive"
-                    Placeholder="Tất cả trạng thái"
-                    AllowClear="true"
-                    Style="width: 100%; margin-top: 4px;"
-                    OnSelectedItemChanged="@(async (bool? value) => await OnFilterChange())">
-                <SelectOptions>
-                    <SelectOption TItem="bool?" TItemValue="bool?" Value="true" Label="Hoạt động" />
-                    <SelectOption TItem="bool?" TItemValue="bool?" Value="false" Label="Không hoạt động" />
-                </SelectOptions>
-            </Select>
-        </AntDesign.Col>
+<PromotionCreateEditModal Visible="@_createEditModalVisible"
+                          IsSubmitting="@_isSubmitting"
+                          ModalError="@_modalError"
+                          Promotion="editingPromotion"
+                          AllProducts="_allProducts"
+                          AllCategories="_allCategories"
+                          AllBrands="_allBrands"
+                          OnSave="OnSavePromotion"
+                          OnCancel="OnCreateEditCancel" />
 
-        <AntDesign.Col Span="8">
-            <Text Strong>Mức độ ưu tiên:</Text>
-            <div style="margin-top: 4px;">
-                <AntDesign.Row Gutter="8">
-                    <AntDesign.Col Span="12">
-                        <AntDesign.InputNumber @bind-Value="@_minPriority"
-                                               Placeholder="Từ"
-                                               Min="1"
-                                               Style="width: 100%"
-                                               OnChange="@(async (int? value) => await OnFilterChange())" />
-                    </AntDesign.Col>
-                    <AntDesign.Col Span="12">
-                        <AntDesign.InputNumber @bind-Value="@_maxPriority"
-                                               Placeholder="Đến"
-                                               Min="1"
-                                               Style="width: 100%"
-                                               OnChange="@(async (int? value) => await OnFilterChange())" />
-                    </AntDesign.Col>
-                </AntDesign.Row>
-            </div>
-        </AntDesign.Col>
-    </AntDesign.Row>
-</Card>
+<PromotionDetailModal Visible="@_detailModalVisible"
+                      Promotion="_currentDetail"
+                      OnCancel="OnDetailCancel" />
 
-<Table @ref=_table
-       TItem="PromotionDto"
-       DataSource="@_filteredData"
-       Loading="_loading">
-    <PropertyColumn Property="c => c.Name" Title="Tên khuyến mãi">
-        <div>
-            <Text Strong>@context.Name</Text>
-            @if (!string.IsNullOrEmpty(context.Description))
-            {
-                <br />
-                <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">@context.Description</AntDesign.Text>
-            }
-        </div>
-    </PropertyColumn>
-    <PropertyColumn Property="c => c.Type" Title="Loại">
-        <Tag Color="@(context.Type == "Percentage" ? "blue" : "green")">
-            @(context.Type == "Percentage" ? "Phần trăm" : "Số tiền cố định")
-        </Tag>
-    </PropertyColumn>
-    <PropertyColumn Property="c => c.DiscountValue" Title="Giá trị">
-        @if (context.Type == "Percentage")
-        {
-            <div>
-                <Text Strong Style="color: #1890ff;">@context.DiscountValue%</Text>
-                @if (context.MaxDiscountAmount.HasValue)
-                {
-                    <br />
-                    <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">
-                        Tối đa: @context.MaxDiscountAmount.Value.ToString("N0")đ
-                    </AntDesign.Text>
-                }
-            </div>
-        }
-        else
-        {
-            <AntDesign.Text Strong Style="color: #52c41a;">@context.DiscountValue.ToString("N0")đ</AntDesign.Text>
-        }
-    </PropertyColumn>
-    <PropertyColumn Property="c => c.Priority" Title="Ưu tiên">
-        <Tag Color="@GetPriorityColor(context.Priority)">
-            @context.Priority
-        </Tag>
-    </PropertyColumn>
-    <PropertyColumn Property="c => c.StartDate" Title="Thời gian">
-        <div style="font-size: 12px;">
-            <div>Từ: @context.StartDate.ToString("dd/MM/yyyy")</div>
-            <div>Đến: @context.EndDate.ToString("dd/MM/yyyy")</div>
-        </div>
-    </PropertyColumn>
-    <PropertyColumn Property="c => c.IsActive" Title="Trạng thái">
-        @{
-            var (color, text) = GetPromotionStatusInfo(context);
-        }
-        <Badge Status="@color" Text="@text" />
-    </PropertyColumn>
-    <ActionColumn Title="Thao tác">
-        <Space>
-            <SpaceItem>
-                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="() => ShowDetailModal(context)">
-                    <Icon Type="eye" />
-                </Button>
-            </SpaceItem>
-            <SpaceItem>
-                <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" OnClick="() => ShowEditModal(context)">
-                    <Icon Type="edit" />
-                </Button>
-            </SpaceItem>
-            <SpaceItem>
-                <Button Type="@(context.IsActive ? ButtonType.Default : ButtonType.Primary)" 
-                        Size="@ButtonSize.Small" 
-                        OnClick="() => ToggleActiveStatus(context)">
-                    <Icon Type="@(context.IsActive ? "pause" : "play-circle")" />
-                </Button>
-            </SpaceItem>
-            <SpaceItem>
-                <Popconfirm Title="Bạn có chắc chắn muốn xóa khuyến mãi này?"
-                            OnConfirm="@(() => DeletePromotion(context.Id))"
-                            OkText="Xóa"
-                            CancelText="Hủy">
-                    <Button Type="@ButtonType.Default" Size="@ButtonSize.Small" Danger>
-                        <Icon Type="delete" />
-                    </Button>
-                </Popconfirm>
-            </SpaceItem>
-        </Space>
-    </ActionColumn>
-</Table>
-
-<!-- Create/Edit Modal -->
-<Modal Title="@(editingPromotion == null ? "Tạo Khuyến mãi Mới" : "Chỉnh Sửa Khuyến mãi")"
-       Visible="@_createEditModalVisible"
-       OnOk="@OnSavePromotion"
-       OnCancel="@OnCreateEditCancel"
-       Width="800"
-       ConfirmLoading="@_isSubmitting">
-    @if (!string.IsNullOrEmpty(_modalError))
-    {
-        <Alert Type="@AlertType.Error" Message="@_modalError" Style="margin-bottom: 16px;" />
-    }
-
-    <Form Model="@_promotionForm" LabelCol="new ColLayoutParam { Span = 6 }" WrapperCol="new ColLayoutParam { Span = 18 }">
-        <AntDesign.Row Gutter="16">
-            <AntDesign.Col Span="12">
-                <FormItem Label="Tên khuyến mãi" Required>
-                    <Input @bind-Value="@_promotionForm.Name" 
-                           Placeholder="Ví dụ: Khuyến mãi mùa hè" />
-                </FormItem>
-            </AntDesign.Col>
-            <AntDesign.Col Span="12">
-                <FormItem Label="Loại khuyến mãi" Required>
-                    <Select TItem="PromotionType"
-                            TItemValue="PromotionType"
-                            @bind-Value="@_promotionForm.Type">
-                        <SelectOptions>
-                            <SelectOption TItem="PromotionType" TItemValue="PromotionType" Value="PromotionType.Percentage" Label="Phần trăm" />
-                            <SelectOption TItem="PromotionType" TItemValue="PromotionType" Value="PromotionType.FixedAmount" Label="Số tiền cố định" />
-                        </SelectOptions>
-                    </Select>
-                </FormItem>
-            </AntDesign.Col>
-        </AntDesign.Row>
-
-        <AntDesign.Row Gutter="16">
-            <AntDesign.Col Span="12">
-                <FormItem Label="@(_promotionForm.Type == PromotionType.Percentage ? "Phần trăm giảm giá" : "Số tiền giảm (VNĐ)")" Required>
-                    <AntDesign.InputNumber @bind-Value="@_promotionForm.DiscountValue"
-                                           Min="0"
-                                           Max="@(_promotionForm.Type == PromotionType.Percentage ? 100 : 999999999)"
-                                           Step="@(_promotionForm.Type == PromotionType.Percentage ? 0.1 : 1000)"
-                                           Style="width: 100%" />
-                </FormItem>
-            </AntDesign.Col>
-            <AntDesign.Col Span="12">
-                <FormItem Label="Mức độ ưu tiên" Required>
-                    <AntDesign.InputNumber @bind-Value="@_promotionForm.Priority"
-                                           Min="1"
-                                           Max="100"
-                                           Step="1"
-                                           Style="width: 100%" />
-                </FormItem>
-            </AntDesign.Col>
-        </AntDesign.Row>
-
-        @if (_promotionForm.Type == PromotionType.Percentage)
-        {
-            <AntDesign.Row Gutter="16">
-                <AntDesign.Col Span="12">
-                    <FormItem Label="Số tiền giảm tối đa (VNĐ)">
-                        <AntDesign.InputNumber @bind-Value="@_promotionForm.MaxDiscountAmount"
-                                               Min="0"
-                                               Step="1000"
-                                               Style="width: 100%" />
-                    </FormItem>
-                </AntDesign.Col>
-            </AntDesign.Row>
-        }
-
-        <AntDesign.Row Gutter="16">
-            <AntDesign.Col Span="12">
-                <FormItem Label="Ngày bắt đầu" Required>
-                    <DatePicker @bind-Value="@_promotionForm.StartDate"
-                                Format="dd/MM/yyyy HH:mm"
-                                ShowTime="true"
-                                Style="width: 100%" />
-                </FormItem>
-            </AntDesign.Col>
-            <AntDesign.Col Span="12">
-                <FormItem Label="Ngày kết thúc" Required>
-                    <DatePicker @bind-Value="@_promotionForm.EndDate"
-                                Format="dd/MM/yyyy HH:mm"
-                                ShowTime="true"
-                                Style="width: 100%" />
-                </FormItem>
-            </AntDesign.Col>
-        </AntDesign.Row>
-
-        <FormItem Label="Mô tả">
-            <TextArea @bind-Value="@_promotionForm.Description"
-                      Rows="3"
-                      Placeholder="Mô tả ngắn về khuyến mãi..." />
-        </FormItem>
-
-        <FormItem Label="Trạng thái">
-            <Checkbox @bind-Value="_promotionForm.IsActive">Kích hoạt khuyến mãi</Checkbox>
-        </FormItem>
-    </Form>
-</Modal>
-
-<!-- Detail Modal -->
-<Modal Title="@("Chi tiết Khuyến mãi: " + (_currentDetail?.Name ?? ""))"
-       Visible="@_detailModalVisible"
-       OnCancel="@OnDetailCancel"
-       Width="800"
-       Footer="null">
-    @if (_currentDetail != null)
-    {
-        <Descriptions Bordered="true" Column="2">
-            <DescriptionsItem Title="Tên khuyến mãi" Span="2">
-                <Text Strong>@_currentDetail.Name</Text>
-            </DescriptionsItem>
-            <DescriptionsItem Title="Mô tả" Span="2">
-                @(_currentDetail.Description ?? "Không có mô tả")
-            </DescriptionsItem>
-            <DescriptionsItem Title="Loại khuyến mãi">
-                <Tag Color="@(_currentDetail.Type == "Percentage" ? "blue" : "green")">
-                    @(_currentDetail.Type == "Percentage" ? "Phần trăm" : "Số tiền cố định")
-                </Tag>
-            </DescriptionsItem>
-            <DescriptionsItem Title="Giá trị">
-                @if (_currentDetail.Type == "Percentage")
-                {
-                    <AntDesign.Text Strong Style="color: #1890ff;">@_currentDetail.DiscountValue%</AntDesign.Text>
-                    @if (_currentDetail.MaxDiscountAmount.HasValue)
-                    {
-                        <br />
-                        <AntDesign.Text Type="@TextElementType.Secondary">
-                            Tối đa: @_currentDetail.MaxDiscountAmount.Value.ToString("N0")đ
-                        </AntDesign.Text>
-                    }
-                }
-                else
-                {
-                    <AntDesign.Text Strong Style="color: #52c41a;">@_currentDetail.DiscountValue.ToString("N0")đ</AntDesign.Text>
-                }
-            </DescriptionsItem>
-            <DescriptionsItem Title="Mức độ ưu tiên">
-                <Tag Color="@GetPriorityColor(_currentDetail.Priority)">
-                    @_currentDetail.Priority
-                </Tag>
-            </DescriptionsItem>
-            <DescriptionsItem Title="Thời gian bắt đầu">
-                @_currentDetail.StartDate.ToString("dd/MM/yyyy HH:mm")
-            </DescriptionsItem>
-            <DescriptionsItem Title="Thời gian kết thúc">
-                @_currentDetail.EndDate.ToString("dd/MM/yyyy HH:mm")
-            </DescriptionsItem>
-            <DescriptionsItem Title="Trạng thái">
-                @{
-                    var (color, text) = GetPromotionStatusInfo(_currentDetail);
-                }
-                <Badge Status="@color" Text="@text" />
-            </DescriptionsItem>
-            <DescriptionsItem Title="Ngày tạo">
-                @_currentDetail.CreatedAt.ToString("dd/MM/yyyy HH:mm")
-            </DescriptionsItem>
-            <DescriptionsItem Title="Cập nhật cuối">
-                @_currentDetail.UpdatedAt?.ToString("dd/MM/yyyy HH:mm")
-            </DescriptionsItem>
-        </Descriptions>
-    }
-</Modal>
 
 @code {
     private IEnumerable<PromotionDto> _data = [];
     private IEnumerable<PromotionDto> _filteredData = [];
-    private ITable _table = default!;
     private bool _loading = true;
     private string _searchText = "";
     private bool _createEditModalVisible = false;
@@ -390,31 +78,49 @@
     private string _modalError = "";
     private bool _isSubmitting = false;
 
+    // Data for selectors
+    private IEnumerable<ProductDto> _allProducts = Enumerable.Empty<ProductDto>();
+    private IEnumerable<CategoryDto> _allCategories = Enumerable.Empty<CategoryDto>();
+    private IEnumerable<BrandDto> _allBrands = Enumerable.Empty<BrandDto>();
+
     // Filter variables
     private PromotionType? _filterType = null;
     private bool? _filterActive = null;
     private int? _minPriority = null;
     private int? _maxPriority = null;
 
-    // Form model
-    private PromotionFormModel _promotionForm = new();
-
-    private class PromotionFormModel
-    {
-        public string Name { get; set; } = "";
-        public string? Description { get; set; }
-        public PromotionType Type { get; set; } = PromotionType.Percentage;
-        public double DiscountValue { get; set; }
-        public double? MaxDiscountAmount { get; set; }
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
-        public int Priority { get; set; } = 1;
-        public bool IsActive { get; set; }
-    }
-
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
+        await LoadSelectData();
+    }
+
+    private async Task LoadSelectData()
+    {
+        try
+        {
+            // Clear cache to ensure fresh data
+            await CacheService.RemoveByPrefixAsync("Category_");
+            await CacheService.RemoveByPrefixAsync("Brand_");
+
+            _allProducts = [];
+            _allCategories = await CategoryService.GetAll();
+            _allBrands = await BrandService.GetAll();
+
+            if (!_allCategories.Any())
+            {
+                MessageService.Warning("Không tìm thấy dữ liệu danh mục. Vui lòng thêm danh mục trước.");
+            }
+
+            if (!_allBrands.Any())
+            {
+                MessageService.Warning("Không tìm thấy dữ liệu thương hiệu. Vui lòng thêm thương hiệu trước.");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageService.Error($"Lỗi khi tải dữ liệu cho lựa chọn: {ex.Message}");
+        }
     }
 
     private async Task ReloadData()
@@ -429,6 +135,16 @@
         ApplyFilters();
     }
 
+    private async Task ClearFilters()
+    {
+        _searchText = "";
+        _filterType = null;
+        _filterActive = null;
+        _minPriority = null;
+        _maxPriority = null;
+        await OnFilterChange();
+    }
+
     private bool HasActiveFilters()
     {
         return !string.IsNullOrEmpty(_searchText) ||
@@ -441,23 +157,22 @@
     private async Task LoadData()
     {
         _loading = true;
-        await Task.Delay(100);
-
         try
         {
             var result = await PromotionService.GetAllAsync();
-            _data = result;
+            _data = result ?? new List<PromotionDto>();
             ApplyFilters();
         }
         catch (Exception ex)
         {
             MessageService.Error($"Lỗi khi tải dữ liệu: {ex.Message}");
-            _data = [];
-            _filteredData = [];
+            _data = new List<PromotionDto>();
+            _filteredData = new List<PromotionDto>();
         }
         finally
         {
             _loading = false;
+            StateHasChanged();
         }
     }
 
@@ -500,76 +215,54 @@
         await OnFilterChange();
     }
 
-    private async Task ClearFilters()
-    {
-        _searchText = "";
-        _filterType = null;
-        _filterActive = null;
-        _minPriority = null;
-        _maxPriority = null;
-
-        ApplyFilters();
-        MessageService.Success("Đã xóa bộ lọc!");
-    }
-
-    private void ShowCreateModal()
+    private async Task ShowCreateModal()
     {
         editingPromotion = null;
-        _promotionForm = new PromotionFormModel
-        {
-            Type = PromotionType.Percentage,
-            IsActive = true,
-            StartDate = DateTime.Now,
-            EndDate = DateTime.Now.AddDays(30),
-            Priority = 1
-        };
         _modalError = "";
+        await LoadSelectData();
         _createEditModalVisible = true;
     }
 
-    private void ShowEditModal(PromotionDto promotion)
+    private async Task ShowEditModal(PromotionDto promotion)
     {
         editingPromotion = promotion;
-        _promotionForm = new PromotionFormModel
-        {
-            Name = promotion.Name,
-            Description = promotion.Description,
-            Type = Enum.Parse<PromotionType>(promotion.Type),
-            DiscountValue = promotion.DiscountValue,
-            MaxDiscountAmount = promotion.MaxDiscountAmount,
-            StartDate = promotion.StartDate,
-            EndDate = promotion.EndDate,
-            Priority = promotion.Priority,
-            IsActive = promotion.IsActive
-        };
         _modalError = "";
+        await LoadSelectData();
         _createEditModalVisible = true;
     }
 
-    private void ShowDetailModal(PromotionDto promotion)
+    private async Task OnSavePromotion(PromotionCreateEditModal.PromotionFormModel model)
     {
-        _currentDetail = promotion;
-        _detailModalVisible = true;
-    }
-
-    private async Task OnSavePromotion()
-    {
-        if (_isSubmitting) return;
-
-        _modalError = "";
         _isSubmitting = true;
-
+        _modalError = "";
         try
         {
+            var request = new CreatePromotionRequest
+            {
+                Name = model.Name,
+                Description = model.Description,
+                Type = model.Type.ToString(),
+                Scope = model.Scope.ToString(),
+                DiscountValue = model.DiscountValue,
+                MaxDiscountAmount = model.MaxDiscountAmount,
+                MinOrderAmount = model.MinOrderAmount,
+                StartDate = model.StartDate,
+                EndDate = model.EndDate,
+                Priority = model.Priority,
+                ProductIds = model.ProductIds,
+                CategoryIds = model.CategoryIds,
+                BrandIds = model.BrandIds
+            };
+
             if (editingPromotion == null)
             {
-                // Create new promotion - this would need actual implementation
-                MessageService.Info("Chức năng tạo mới đang được phát triển");
+                await PromotionService.CreateAsync(request);
+                MessageService.Success("Tạo khuyến mãi thành công!");
             }
             else
             {
-                // Update existing promotion - this would need actual implementation
-                MessageService.Info("Chức năng cập nhật đang được phát triển");
+                await PromotionService.UpdateAsync(editingPromotion.Id, request);
+                MessageService.Success("Cập nhật khuyến mãi thành công!");
             }
 
             _createEditModalVisible = false;
@@ -577,7 +270,7 @@
         }
         catch (Exception ex)
         {
-            _modalError = ex.Message;
+            _modalError = $"Lỗi khi lưu: {ex.Message}";
         }
         finally
         {
@@ -588,14 +281,6 @@
     private void OnCreateEditCancel()
     {
         _createEditModalVisible = false;
-        editingPromotion = null;
-        _modalError = "";
-    }
-
-    private void OnDetailCancel()
-    {
-        _detailModalVisible = false;
-        _currentDetail = null;
     }
 
     private async Task DeletePromotion(string id)
@@ -603,12 +288,12 @@
         try
         {
             await PromotionService.DeleteAsync(id);
-            await LoadData();
             MessageService.Success("Xóa khuyến mãi thành công!");
+            await LoadData();
         }
         catch (Exception ex)
         {
-            MessageService.Error($"Lỗi xóa khuyến mãi: {ex.Message}");
+            MessageService.Error($"Lỗi khi xóa: {ex.Message}");
         }
     }
 
@@ -616,44 +301,25 @@
     {
         try
         {
-            // This would need actual implementation
-            MessageService.Info("Chức năng thay đổi trạng thái đang được phát triển");
+            await PromotionService.ToggleActiveStatusAsync(promotion.Id, !promotion.IsActive);
+            MessageService.Success($"{(promotion.IsActive ? "Hủy kích hoạt" : "Kích hoạt")} khuyến mãi thành công!");
+            await LoadData();
         }
         catch (Exception ex)
         {
-            MessageService.Error($"Lỗi thay đổi trạng thái: {ex.Message}");
+            MessageService.Error($"Lỗi khi thay đổi trạng thái: {ex.Message}");
         }
     }
 
-    private (BadgeStatus color, string text) GetPromotionStatusInfo(PromotionDto promotion)
+    private void ShowDetailModal(PromotionDto promotion)
     {
-        if (promotion.IsActive && promotion.StartDate <= DateTime.Now && promotion.EndDate >= DateTime.Now)
-        {
-            return (BadgeStatus.Success, "Hoạt động");
-        }
-        else if (!promotion.IsActive)
-        {
-            return (BadgeStatus.Default, "Tạm dừng");
-        }
-        else if (promotion.StartDate > DateTime.Now)
-        {
-            return (BadgeStatus.Warning, "Chưa bắt đầu");
-        }
-        else
-        {
-            return (BadgeStatus.Error, "Hết hạn");
-        }
+        _currentDetail = promotion;
+        _detailModalVisible = true;
     }
 
-    private string GetPriorityColor(int priority)
+    private void OnDetailCancel()
     {
-        return priority switch
-        {
-            >= 8 => "red",
-            >= 5 => "orange",
-            >= 3 => "blue",
-            _ => "green"
-        };
+        _detailModalVisible = false;
     }
 }
 
