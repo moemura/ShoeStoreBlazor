@@ -42,12 +42,22 @@
                 </div>
             </Header>
             <Layout>
-                <Sider Collapsible Theme="SiderTheme.Light" Width="250">
+                <Sider Collapsible Theme="SiderTheme.Light" Width="250" Breakpoint="BreakpointType.Lg">
                     <Menu Theme="MenuTheme.Light" DefaultSelectedKeys=@(new[] { "1" }) Mode="MenuMode.Inline">
                         <MenuItem Key="1" RouterLink="/">
                             <Icon Type="@IconType.Outline.BarChart" />
                             <span>Tổng quan</span>
                         </MenuItem>
+                        <SubMenu TitleTemplate="@userAndRolesFragment">
+                            <MenuItem Key="100" RouterLink="/admin/users">
+                                <Icon Type="@IconType.Outline.Contacts"></Icon>
+                                <span>Người dùng</span>
+                            </MenuItem>
+                            <MenuItem Key="101" RouterLink="/admin/roles">
+                                <Icon Type="@IconType.Outline.PicCenter"></Icon>
+                                <span>Vai trò</span>
+                            </MenuItem>
+                        </SubMenu>
                         <MenuItem Key="2" RouterLink="/admin/orders">
                             <Icon Type="@IconType.Outline.ShoppingCart" />
                             <span>Đơn hàng</span>
@@ -170,6 +180,12 @@
 </script>
 
 @code {
+    RenderFragment userAndRolesFragment =
+    @<Template>
+        <Icon Type="@IconType.Outline.Setting" />
+        Người dùng và vai trò
+    </Template>;
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();

@@ -14,6 +14,63 @@ public class AccountService : IAccountService
         _dbContextFactory = dbContextFactory;
     }
 
+    public async Task<AuthResponseDto> CreateAsync(RegisterDto dto)
+    {
+        var appuser = new AppUser()
+        {
+            UserName = dto.Email,
+            FullName = dto.FullName,
+            Email = dto.Email,
+            PhoneNumber = dto.PhoneNumber,
+        };
+        var result = await _userManager.CreateAsync(appuser, dto.Password);
+        if (!result.Succeeded)
+        {
+            return new AuthResponseDto { Success = false, Message = "User not created" };
+        }
+        else
+        {
+            return new AuthResponseDto { Success = true, Message = "User created" };
+        }
+    }
+
+    public async Task DeleteAsync(string id)
+    {
+        var user = await _userManager.FindByIdAsync(id) ?? new AppUser();
+        var result = await _userManager.DeleteAsync(user);
+    }
+
+    public async Task UpdateAsync(UserDto dto)
+    {
+        var user = await _userManager.FindByIdAsync(dto.Id) ?? new AppUser();
+        user.Email = dto.Email;
+        user.PhoneNumber = dto.PhoneNumber;
+        user.FullName = dto.FullName;
+        user.Address = dto.Address;
+        var result = await _userManager.UpdateAsync(user);
+    }
+
+    public async Task<IEnumerable<UserDto>> GetAllAsync()
+    {
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var users = dbContext.Users.ToList();
+
+
+        var userDtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            userDtos.Add(new UserDto
+            {
+                Id = user.Id,
+                Email = user.Email!,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                FullName = user.FullName,
+                Address = user.Address,
+            });
+        }
+        return userDtos;
+    }
+
     public async Task<AuthResponseDto> ChangePasswordAsync(string userId, ChangePasswordDto model)
     {
         var user = await _userManager.FindByIdAsync(userId);
@@ -119,7 +176,7 @@ public class AccountService : IAccountService
         return result.Succeeded;
     }
 
-    public async Task<PaginatedList<UserDto>> FilterAndPagingUsers(int pageIndex, int pageSize, Dictionary<string, string> filter)
+    public async Task<PaginatedList<UserDto>> FilterAndPagingUsersAsync(int pageIndex, int pageSize, Dictionary<string, string> filter)
     {
         using var dbContext = await _dbContextFactory.CreateDbContextAsync();
         var query = dbContext.Users.AsQueryable();
@@ -156,9 +213,9 @@ public class AccountService : IAccountService
         return new PaginatedList<UserDto>(userDtos, pageIndex, pageSize, totalItems);
     }
 
-    private async Task<UserDto> MapToUserDtoAsync(AppUser user)
+    private async Task<UserDto> MapToUserDtoAsync(AppUser user, bool withRoles = false)
     {
-        return new UserDto
+        var dto = new UserDto
         {
             Id = user.Id,
             Email = user.Email!,
@@ -167,7 +224,36 @@ public class AccountService : IAccountService
             Address = user.Address,
             IsLocked = await _userManager.IsLockedOutAsync(user),
             LockoutEnd = (await _userManager.GetLockoutEndDateAsync(user))?.UtcDateTime,
-            Roles = (await _userManager.GetRolesAsync(user)).ToList()
+
         };
+        if (withRoles)
+        {
+            dto.Roles = (await _userManager.GetRolesAsync(user)).ToList();
+        }
+        return dto;
+    }
+
+    public async Task<PaginatedList<UserDto>> GetPaginationAsync(int pageIndex, int pageSize)
+    {
+        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var totalItems = await dbContext.Users.CountAsync();
+        var users = await dbContext.Users
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        // Map users to UserDto asynchronously
+        var userDtos = new List<UserDto>();
+        foreach (var user in users)
+        {
+            userDtos.Add(await MapToUserDtoAsync(user));
+        }
+
+        return new PaginatedList<UserDto>(
+            userDtos,
+            pageIndex,
+            pageSize,
+            totalItems
+        );
     }
 } 
